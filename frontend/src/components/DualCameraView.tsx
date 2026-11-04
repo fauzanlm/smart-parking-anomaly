@@ -1,5 +1,5 @@
 import React, { useRef, useState, useEffect } from 'react';
-import { Camera, Crosshair, Sparkles, Video, VideoOff, Aperture } from 'lucide-react';
+import { Camera, Video, VideoOff, Aperture, AlertCircle } from 'lucide-react';
 import { VerificationResult } from '../types';
 
 interface DualCameraViewProps {
@@ -36,7 +36,7 @@ export const DualCameraView: React.FC<DualCameraViewProps> = ({
       setIsWebcamActive(true);
     } catch (err: any) {
       console.error('Webcam access error:', err);
-      setWebcamError('Izin akses webcam ditolak atau kamera tidak ditemukan.');
+      setWebcamError('Akses kamera tidak diizinkan atau kamera tidak terdeteksi.');
       setIsWebcamActive(false);
     }
   };
@@ -75,71 +75,80 @@ export const DualCameraView: React.FC<DualCameraViewProps> = ({
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-      {/* Camera 1: License Plate View */}
-      <div className="relative rounded-2xl overflow-hidden border border-slate-800 bg-slate-950/80 shadow-inner group">
-        <div className="absolute top-3 left-3 z-20 flex items-center gap-2 bg-slate-900/90 backdrop-blur border border-slate-700/80 px-2.5 py-1 rounded-md text-xs font-mono text-cyan-400">
-          <Camera className="w-3.5 h-3.5" />
-          <span>CAM-01: ANPR (YOLOv8 + OCR)</span>
+      {/* CAM 01: License Plate Camera */}
+      <div className="bg-white border border-slate-200 rounded-lg overflow-hidden shadow-sm flex flex-col">
+        {/* CCTV Top Header */}
+        <div className="bg-slate-100 px-4 py-2.5 border-b border-slate-200 flex items-center justify-between text-xs">
+          <div className="flex items-center gap-2 font-medium text-slate-800">
+            <Camera className="w-4 h-4 text-slate-600" />
+            <span>Kamera 1: Posisi Plat Nomor (YOLOv8 + OCR)</span>
+          </div>
+          <span className="text-slate-500 font-mono">1080P | 30 FPS</span>
         </div>
 
-        <div className="h-72 flex flex-col items-center justify-center p-6 relative overflow-hidden bg-gradient-to-b from-slate-900 to-slate-950">
-          <div className="absolute inset-0 bg-[linear-gradient(to_right,#1e293b15_1px,transparent_1px),linear-gradient(to_bottom,#1e293b15_1px,transparent_1px)] bg-[size:24px_24px]" />
+        {/* Viewport Frame */}
+        <div className="h-64 bg-slate-900 flex flex-col items-center justify-center p-6 relative">
+          {/* CCTV Timestamp Overlay */}
+          <div className="absolute top-2 left-3 font-mono text-[11px] text-emerald-400 font-semibold tracking-wider">
+            CAM 01 ● LIVE
+          </div>
 
           <div className="z-10 flex flex-col items-center text-center">
-            <div className="w-44 h-12 border-2 border-dashed border-cyan-500/60 rounded-lg flex items-center justify-center relative p-1 bg-black/80 shadow-xl">
-              <span className="absolute -top-3 left-2 bg-cyan-500 text-black text-[10px] font-bold px-1.5 py-0.2 rounded font-mono">
-                PLATE_BBOX [0.98]
+            {/* Indonesian Plate Display Box */}
+            <div className="bg-black border-2 border-white rounded-md px-6 py-2 shadow-lg">
+              <span className="block text-[10px] text-slate-400 font-mono font-bold tracking-widest text-center">
+                POLRI - REPUBLIK INDONESIA
               </span>
-              <p className="font-mono text-2xl font-bold tracking-widest text-white drop-shadow">
+              <p className="font-mono text-2xl font-bold tracking-widest text-white drop-shadow mt-0.5">
                 {lastResult?.plate_number || plateNumber || 'B 1234 WLM'}
               </p>
             </div>
             <p className="text-xs text-slate-400 mt-3 font-mono">
-              Kelas Kendaraan: Mobil Penumpang / SUV
+              Status Plat: Terbaca Otomatis
             </p>
           </div>
 
           {isProcessing && (
-            <div className="absolute inset-x-0 h-0.5 bg-gradient-to-r from-transparent via-cyan-400 to-transparent animate-bounce top-1/3 z-20 shadow-[0_0_15px_#22d3ee]" />
+            <div className="absolute inset-x-0 top-1/2 h-0.5 bg-yellow-400 animate-pulse" />
           )}
         </div>
 
-        <div className="p-3 bg-slate-900/80 border-t border-slate-800 text-xs flex justify-between items-center text-slate-400">
-          <span>Resolusi: 1920x1080 @ 30 FPS</span>
-          <span className="text-cyan-400 font-mono font-medium">PaddleOCR: ACTIVE</span>
+        <div className="p-3 bg-white border-t border-slate-200 text-xs flex justify-between items-center text-slate-600 font-medium">
+          <span>Deteksi Objek: YOLOv8-Vehicle</span>
+          <span className="text-blue-700 font-mono">OCR: PaddleOCR Aktif</span>
         </div>
       </div>
 
-      {/* Camera 2: Driver Biometric View (Live Webcam capable) */}
-      <div className={`relative rounded-2xl overflow-hidden border ${isAnomaly ? 'border-rose-500 shadow-rose-950/50 shadow-lg' : 'border-slate-800'} bg-slate-950/80 shadow-inner transition-all duration-300`}>
-        {/* Top Control Overlay */}
-        <div className="absolute top-3 inset-x-3 z-30 flex items-center justify-between pointer-events-none">
-          <div className="flex items-center gap-2 bg-slate-900/90 backdrop-blur border border-slate-700/80 px-2.5 py-1 rounded-md text-xs font-mono text-emerald-400 pointer-events-auto">
-            <Crosshair className="w-3.5 h-3.5" />
-            <span>CAM-02: {isWebcamActive ? 'REAL WEBCAM LIVE' : 'BIOMETRIC SENSOR'}</span>
+      {/* CAM 02: Biometric Face Camera */}
+      <div className={`bg-white border ${isAnomaly ? 'border-red-400 ring-2 ring-red-100' : 'border-slate-200'} rounded-lg overflow-hidden shadow-sm flex flex-col`}>
+        {/* CCTV Top Header */}
+        <div className="bg-slate-100 px-4 py-2 border-b border-slate-200 flex items-center justify-between text-xs">
+          <div className="flex items-center gap-2 font-medium text-slate-800">
+            <span className={`w-2 h-2 rounded-full ${isWebcamActive ? 'bg-red-500 animate-pulse' : 'bg-slate-400'}`} />
+            <span>Kamera 2: Biometrik Pengemudi (SCRFD / ArcFace)</span>
           </div>
 
-          <div className="flex items-center gap-2 pointer-events-auto">
-            {highResTriggered && (
-              <div className="flex items-center gap-1.5 bg-rose-600 text-white px-2.5 py-1 rounded-md text-xs font-bold animate-pulse shadow-lg">
-                <Sparkles className="w-3.5 h-3.5" />
-                <span>HI-RES TRIGGERED!</span>
-              </div>
-            )}
-
-            <button
-              onClick={isWebcamActive ? stopWebcam : startWebcam}
-              className={`flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-bold transition shadow ${isWebcamActive ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40 hover:bg-amber-500/30' : 'bg-emerald-600 text-white hover:bg-emerald-500'}`}
-            >
-              {isWebcamActive ? <VideoOff className="w-3.5 h-3.5" /> : <Video className="w-3.5 h-3.5" />}
-              <span>{isWebcamActive ? 'Matikan Kamera' : 'Nyalakan Webcam'}</span>
-            </button>
-          </div>
+          <button
+            onClick={isWebcamActive ? stopWebcam : startWebcam}
+            className={`px-3 py-1 rounded text-xs font-medium transition flex items-center gap-1.5 ${
+              isWebcamActive
+                ? 'bg-red-100 text-red-700 hover:bg-red-200'
+                : 'bg-blue-600 text-white hover:bg-blue-700'
+            }`}
+          >
+            {isWebcamActive ? <VideoOff className="w-3.5 h-3.5" /> : <Video className="w-3.5 h-3.5" />}
+            {isWebcamActive ? 'Matikan Kamera' : 'Buka Kamera Laptop'}
+          </button>
         </div>
 
-        {/* Camera Viewport */}
-        <div className="h-72 flex flex-col items-center justify-center relative overflow-hidden bg-gradient-to-b from-slate-900 to-slate-950">
-          {/* Live Video Feed */}
+        {/* Viewport Frame */}
+        <div className="h-64 bg-slate-900 flex flex-col items-center justify-center relative overflow-hidden">
+          {/* CCTV Live Tag */}
+          <div className="absolute top-2 left-3 font-mono text-[11px] text-emerald-400 font-semibold tracking-wider z-20">
+            CAM 02 ● {isWebcamActive ? 'WEBCAM ON' : 'STANDBY'}
+          </div>
+
+          {/* Video Stream */}
           <video
             ref={videoRef}
             autoPlay
@@ -148,57 +157,48 @@ export const DualCameraView: React.FC<DualCameraViewProps> = ({
             className={`w-full h-full object-cover ${isWebcamActive ? 'block' : 'hidden'}`}
           />
 
-          {/* Webcam Inactive Placeholder / HUD */}
+          {/* Standby Placeholder */}
           {!isWebcamActive && (
             <div className="z-10 flex flex-col items-center text-center p-4">
-              <div className="w-12 h-12 rounded-2xl bg-slate-800/80 border border-slate-700 flex items-center justify-center text-slate-400 mb-2">
-                <Video className="w-6 h-6" />
+              <div className="w-10 h-10 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-slate-400 mb-2">
+                <Video className="w-5 h-5" />
               </div>
-              <p className="text-sm font-semibold text-slate-200">Kamera Fisik Belum Aktif</p>
+              <p className="text-sm font-semibold text-slate-200">Kamera Fisik Belum Dinyalakan</p>
               <p className="text-xs text-slate-400 max-w-xs mt-1">
-                Klik tombol <strong className="text-emerald-400">"Nyalakan Webcam"</strong> di atas untuk memindai wajah langsung dari kamera laptop William.
+                Klik tombol <strong className="text-blue-400">"Buka Kamera Laptop"</strong> di atas untuk memindai wajah langsung lewat webcam William.
               </p>
               {webcamError && (
-                <p className="text-xs text-rose-400 mt-2 font-mono">{webcamError}</p>
+                <p className="text-xs text-red-400 mt-2 font-medium">{webcamError}</p>
               )}
             </div>
           )}
 
-          {/* Bounding box guide when active */}
+          {/* Target Guide when webcam is active */}
           {isWebcamActive && (
             <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
-              <div className="w-48 h-56 border-2 border-emerald-400/70 border-dashed rounded-3xl relative">
-                <span className="absolute -top-3 left-3 bg-emerald-500 text-black text-[10px] font-bold px-1.5 py-0.5 rounded font-mono">
-                  TARGET AREA PENGEMUDI
-                </span>
-              </div>
+              <div className="w-40 h-48 border-2 border-white/60 border-dashed rounded-lg" />
             </div>
           )}
 
-          {/* Trigger Flash Effect */}
-          {highResTriggered && (
-            <div className="absolute inset-0 bg-rose-500/25 pointer-events-none animate-ping" />
-          )}
-
-          {/* Floating Capture Live Button */}
+          {/* Floating Capture Button */}
           {isWebcamActive && (
             <div className="absolute bottom-3 inset-x-0 z-20 flex justify-center">
               <button
                 onClick={handleCaptureClick}
                 disabled={isProcessing}
-                className="px-5 py-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-bold text-xs flex items-center gap-2 shadow-xl shadow-emerald-950/60 transition active:scale-95 disabled:opacity-50"
+                className="px-4 py-2 rounded-md bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs flex items-center gap-2 shadow-md transition active:scale-95 disabled:opacity-50"
               >
                 <Aperture className={`w-4 h-4 ${isProcessing ? 'animate-spin' : ''}`} />
-                {isProcessing ? 'Memproses Biometrik...' : '📸 Pindai Wajah Saya (Capture Live)'}
+                {isProcessing ? 'Memproses Citra...' : 'Ambil Foto & Verifikasi'}
               </button>
             </div>
           )}
         </div>
 
-        <div className="p-3 bg-slate-900/80 border-t border-slate-800 text-xs flex justify-between items-center text-slate-400">
-          <span>AI Biometrik: YuNet (Detection) + SFace (Deep Matching)</span>
-          <span className={`${isAnomaly ? 'text-rose-400 font-bold' : 'text-emerald-400'} font-mono`}>
-            {isWebcamActive ? 'STREAMING REAL-TIME' : 'SIMULATION MODE READY'}
+        <div className="p-3 bg-white border-t border-slate-200 text-xs flex justify-between items-center text-slate-600 font-medium">
+          <span>Ekstraksi Biometrik: 128-d Vector</span>
+          <span className={isAnomaly ? 'text-red-600 font-bold' : 'text-emerald-700'}>
+            {isAnomaly ? 'Peringatan: Anomali Terdeteksi' : 'Status: Normal'}
           </span>
         </div>
       </div>

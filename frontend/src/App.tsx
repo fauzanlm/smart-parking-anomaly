@@ -32,7 +32,7 @@ export const App: React.FC = () => {
         osc.type = 'sawtooth';
         osc.frequency.setValueAtTime(800, audioCtx.currentTime);
         osc.frequency.setValueAtTime(400, audioCtx.currentTime + 0.15);
-        gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+        gain.gain.setValueAtTime(0.25, audioCtx.currentTime);
         gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.4);
         osc.start();
         osc.stop(audioCtx.currentTime + 0.4);
@@ -40,13 +40,13 @@ export const App: React.FC = () => {
         osc.type = 'sine';
         osc.frequency.setValueAtTime(587.33, audioCtx.currentTime);
         osc.frequency.setValueAtTime(880.00, audioCtx.currentTime + 0.1);
-        gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+        gain.gain.setValueAtTime(0.12, audioCtx.currentTime);
         gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
         osc.start();
         osc.stop(audioCtx.currentTime + 0.3);
       }
     } catch (e) {
-      console.warn('AudioContext disabled or not permitted yet:', e);
+      console.warn('AudioContext disabled:', e);
     }
   };
 
@@ -96,7 +96,6 @@ export const App: React.FC = () => {
     };
   }, []);
 
-  // Handle Real Webcam Live Snapshot
   const handleCaptureLive = async (base64Image: string) => {
     setIsProcessing(true);
     try {
@@ -115,7 +114,6 @@ export const App: React.FC = () => {
     }
   };
 
-  // Handle Simulation Scenarios
   const handleRunSimulation = async (plate: string, persona: string, eventType: string) => {
     setIsProcessing(true);
     setCurrentPlate(plate);
@@ -150,13 +148,14 @@ export const App: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-cyan-500 selection:text-white">
+    <div className="min-h-screen bg-slate-100 text-slate-800 flex flex-col font-sans">
       <Navbar onReset={handleReset} isResetting={isResetting} wsConnected={wsConnected} />
 
-      <main className="flex-1 max-w-7xl w-full mx-auto p-4 md:p-6 space-y-6">
+      <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 space-y-5">
+        {/* Ringkasan Statistik */}
         <StatsOverview stats={stats} />
 
-        {/* Dual Camera View (with Live Webcam Support) */}
+        {/* Pemantau Kamera CCTV Ganda */}
         <DualCameraView
           lastResult={lastResult}
           isProcessing={isProcessing}
@@ -164,19 +163,19 @@ export const App: React.FC = () => {
           plateNumber={currentPlate}
         />
 
-        {/* Verification and Security Gate Banner */}
+        {/* Panel Status Verifikasi & Palang Parkir */}
         <VerificationPanel
           result={lastResult}
           onOpenEvidence={(url) => setEvidenceModalUrl(url)}
         />
 
-        {/* Interactive Playgrounds & Scenarios */}
+        {/* Panel Pengujian & Skenario Sidang Skripsi */}
         <SimulationPlayground
           onRunSimulation={handleRunSimulation}
           isProcessing={isProcessing}
         />
 
-        {/* Real-time Log Table */}
+        {/* Tabel Log Transaksi & Arsip Forensik */}
         <LogsTable
           logs={logs}
           onViewEvidence={(url) => setEvidenceModalUrl(url)}
@@ -188,12 +187,12 @@ export const App: React.FC = () => {
         onClose={() => setEvidenceModalUrl(null)}
       />
 
-      <footer className="border-t border-slate-900 bg-slate-950 py-6 text-center text-xs text-slate-500">
-        <p>
-          Sistem Pengenalan Wajah Pengendara & Plat Nomor Cerdas © {new Date().getFullYear()} — Karya Skripsi William
+      <footer className="border-t border-slate-200 bg-white py-4 text-center text-xs text-slate-500">
+        <p className="font-medium text-slate-700">
+          Sistem Pengenalan Wajah Pengendara & Plat Nomor Kendaraan © {new Date().getFullYear()} — Tugas Akhir / Skripsi William
         </p>
-        <p className="mt-1 font-mono text-slate-600">
-          Powered by YOLOv8 (OCR ANPR) • YuNet (Face Detection) • SFace (Deep Biometrics 128-d)
+        <p className="mt-0.5 text-slate-500">
+          Arsitektur: YOLOv8 (OCR Plat Kendaraan) • SCRFD / YuNet (Deteksi Wajah) • ArcFace / SFace (Cosine Similarity 128-d)
         </p>
       </footer>
     </div>

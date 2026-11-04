@@ -1,5 +1,5 @@
-import React from 'react';
-import { ShieldCheck, ShieldAlert, RotateCcw, Video, Cpu } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Shield, RotateCcw, Clock, Building2 } from 'lucide-react';
 
 interface NavbarProps {
   onReset: () => void;
@@ -8,42 +8,70 @@ interface NavbarProps {
 }
 
 export const Navbar: React.FC<NavbarProps> = ({ onReset, isResetting, wsConnected }) => {
+  const [timeStr, setTimeStr] = useState('');
+
+  useEffect(() => {
+    const updateTime = () => {
+      const now = new Date();
+      setTimeStr(
+        now.toLocaleDateString('id-ID', {
+          weekday: 'long',
+          day: 'numeric',
+          month: 'short',
+          year: 'numeric'
+        }) + ' - ' + now.toLocaleTimeString('id-ID') + ' WIB'
+      );
+    };
+    updateTime();
+    const interval = setInterval(updateTime, 1000);
+    return () => clearInterval(interval);
+  }, []);
+
   return (
-    <header className="border-b border-slate-800 bg-slate-900/80 backdrop-blur-md sticky top-0 z-50 px-6 py-3.5">
-      <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
+    <header className="bg-slate-900 text-white border-b border-slate-800 shadow-sm sticky top-0 z-40">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex flex-col md:flex-row items-center justify-between gap-3">
+        {/* Logo & Title */}
         <div className="flex items-center gap-3">
-          <div className="p-2.5 bg-gradient-to-tr from-cyan-600 to-blue-600 rounded-xl shadow-lg shadow-cyan-500/20">
-            <ShieldCheck className="w-6 h-6 text-white" />
+          <div className="p-2 bg-blue-700 text-white rounded-lg shadow-sm">
+            <Building2 className="w-5 h-5" />
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h1 className="text-lg font-bold text-white tracking-tight">Smart Parking Anomaly Detection</h1>
-              <span className="text-xs px-2 py-0.5 rounded-full bg-cyan-500/10 text-cyan-400 font-mono border border-cyan-500/20">
-                Skripsi AI Multi-Modal
+              <h1 className="text-base font-bold tracking-tight text-white">
+                SIM-PARKIR: SISTEM DETEKSI ANOMALI KENDARAAN
+              </h1>
+              <span className="text-[11px] px-2 py-0.5 rounded bg-blue-800 text-blue-200 font-medium">
+                Pos Gerbang Keluar
               </span>
             </div>
-            <p className="text-xs text-slate-400">
-              YOLOv8 Plate OCR + SCRFD ArcFace Biometric Profiling
+            <p className="text-xs text-slate-300">
+              Korelasi Multi-Modal Plat Nomor (YOLOv8) & Biometrik Wajah (SCRFD / ArcFace) — Skripsi William
             </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-800/80 border border-slate-700/60 text-xs">
-            <span className={`w-2 h-2 rounded-full ${wsConnected ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'}`} />
-            <span className="text-slate-300 font-medium">
-              {wsConnected ? 'Live Gate Stream: Active' : 'Connecting Stream...'}
+        {/* Status, Time, and Actions */}
+        <div className="flex items-center gap-3 text-xs">
+          <div className="hidden sm:flex items-center gap-1.5 text-slate-300 font-mono bg-slate-800/80 px-3 py-1.5 rounded-md border border-slate-700">
+            <Clock className="w-3.5 h-3.5 text-slate-400" />
+            <span>{timeStr}</span>
+          </div>
+
+          <div className="flex items-center gap-2 bg-slate-800/80 px-2.5 py-1.5 rounded-md border border-slate-700">
+            <span className={`w-2 h-2 rounded-full ${wsConnected ? 'bg-emerald-400' : 'bg-amber-400'}`} />
+            <span className="text-slate-200 font-medium">
+              {wsConnected ? 'Sensor Gerbang: Online' : 'Koneksi Terputus'}
             </span>
           </div>
 
           <button
             onClick={onReset}
             disabled={isResetting}
-            className="flex items-center gap-2 px-3.5 py-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/30 text-xs font-medium transition active:scale-95 disabled:opacity-50"
-            title="Reset database to start a fresh demo session"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-red-600 hover:bg-red-700 text-white font-medium transition active:scale-95 disabled:opacity-50"
+            title="Bersihkan database untuk pengujian baru"
           >
             <RotateCcw className={`w-3.5 h-3.5 ${isResetting ? 'animate-spin' : ''}`} />
-            {isResetting ? 'Resetting...' : 'Reset Demo Data'}
+            {isResetting ? 'Mereset...' : 'Reset Data'}
           </button>
         </div>
       </div>
