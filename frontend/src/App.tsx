@@ -18,6 +18,12 @@ export const App: React.FC = () => {
   const [evidenceModalUrl, setEvidenceModalUrl] = useState<string | null>(null);
   const [wsConnected, setWsConnected] = useState<boolean>(false);
   const [currentPlate, setCurrentPlate] = useState<string>('B 1234 WLM');
+  
+  // Real OCR on paper plate state
+  const [scannedPlatePhoto, setScannedPlatePhoto] = useState<string | null>(null);
+  const [ocrMessage, setOcrMessage] = useState<string | null>(null);
+  const [isScanningPlate, setIsScanningPlate] = useState<boolean>(false);
+
   const wsRef = useRef<WebSocket | null>(null);
 
   const playAlertSound = (type: 'NORMAL' | 'ANOMALY') => {
@@ -82,6 +88,8 @@ export const App: React.FC = () => {
           fetchInitialData();
         } else if (msg.type === 'SYSTEM_RESET') {
           setLastResult(null);
+          setScannedPlatePhoto(null);
+          setOcrMessage(null);
           fetchInitialData();
         }
       } catch (e) {
@@ -95,6 +103,41 @@ export const App: React.FC = () => {
       socket.close();
     };
   }, []);
+
+  // Real OCR on paper plate snapshot
+  const handleScanPlateImage = async (base64Image: string) => {
+    setIsScanningPlate(true);
+    setOcrMessage('Menganalisis tulisan plat...');
+    try {
+      const res = await axios.post<{
+        success: boolean;
+        plate_number?: string;
+        message: string;
+        photo_url?: string;
+      }>('/api/parking/ocr-plate', {
+        image_base64: base64Image
+      });
+
+      if (res.data.success && res.data.plate_number) {
+        setCurrentPlate(res.data.plate_number);
+        setScannedPlatePhoto(res.data.photo_url || null);
+        setOcrMessage(`✓ Plat Terbaca: ${res.data.plate_number}`);
+      } else {
+        if (res.data.photo_url) {
+          setScannedPlatePhoto(res.data.photo_url);
+        }
+        setOcrMessage(res.data.message || 'Pola plat tidak terdeteksi');
+      }
+    } catch (err) {
+      console.error('Error scanning paper plate:', err);
+      setOcrMessage('Gagal menganalisis gambar plat.');
+    } finally {
+      setIsScanningPlate(false);
+      setTimeout(() => {
+        setOcrMessage(null);
+      }, 5000);
+    }
+  };
 
   const handleCaptureLive = async (base64Image: string) => {
     setIsProcessing(true);
@@ -139,6 +182,8 @@ export const App: React.FC = () => {
     try {
       await axios.post('/api/parking/reset');
       setLastResult(null);
+      setScannedPlatePhoto(null);
+      setOcrMessage(null);
       await fetchInitialData();
     } catch (err) {
       console.error('Reset failed:', err);
@@ -152,30 +197,34 @@ export const App: React.FC = () => {
       <Navbar onReset={handleReset} isResetting={isResetting} wsConnected={wsConnected} />
 
       <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 space-y-5">
-        {/* Ringkasan Statistik */}
         <StatsOverview stats={stats} />
 
-        {/* Pemantau Kamera CCTV Ganda */}
+        {/* Dual Camera Monitor with Paper OCR & Live Webcam Biometric */}
         <DualCameraView
           lastResult={lastResult}
           isProcessing={isProcessing}
           onCaptureLive={handleCaptureLive}
+          onScanPlateImage={handleScanPlateImage}
           plateNumber={currentPlate}
+          onPlateChange={(plate) => setCurrentPlate(plate)}
+          scannedPlatePhoto={scannedPlatePhoto}
+          ocrMessage={ocrMessage}
+          isScanningPlate={isScanningPlate}
         />
 
-        {/* Panel Status Verifikasi & Palang Parkir */}
+        {/* Verification Alert & Gate Status */}
         <VerificationPanel
           result={lastResult}
           onOpenEvidence={(url) => setEvidenceModalUrl(url)}
         />
 
-        {/* Panel Pengujian & Skenario Sidang Skripsi */}
+        {/* Simulation Scenarios */}
         <SimulationPlayground
           onRunSimulation={handleRunSimulation}
           isProcessing={isProcessing}
         />
 
-        {/* Tabel Log Transaksi & Arsip Forensik */}
+        {/* Logs Table */}
         <LogsTable
           logs={logs}
           onViewEvidence={(url) => setEvidenceModalUrl(url)}
@@ -192,7 +241,7 @@ export const App: React.FC = () => {
           Sistem Pengenalan Wajah Pengendara & Plat Nomor Kendaraan © {new Date().getFullYear()} — Tugas Akhir / Skripsi William
         </p>
         <p className="mt-0.5 text-slate-500">
-          Arsitektur: YOLOv8 (OCR Plat Kendaraan) • SCRFD / YuNet (Deteksi Wajah) • ArcFace / SFace (Cosine Similarity 128-d)
+          Modul OCR: Tesseract 5.5 + Otsu Adaptive Thresholding • Biometrik: YuNet + SFace Cosine Matching
         </p>
       </footer>
     </div>

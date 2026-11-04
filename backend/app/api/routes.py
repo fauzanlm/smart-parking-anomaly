@@ -1,13 +1,44 @@
+import base64
+import cv2
+import numpy as np
 from fastapi import APIRouter, HTTPException, Query
 from typing import List, Optional
 from datetime import datetime
 
-from app.models.schemas import ProcessParkingRequest, ProcessLiveParkingRequest, VerificationResult
+from app.models.schemas import (
+    ProcessParkingRequest,
+    ProcessLiveParkingRequest,
+    OCRPlateRequest,
+    OCRPlateResponse,
+    VerificationResult
+)
 from app.services.decision_engine import decision_engine
+from app.services.plate_ocr import plate_ocr
 from app.api.websocket import ws_manager
 from app.database import get_all_logs, get_all_vehicles, reset_database, get_db_connection
 
 router = APIRouter(prefix="/api", tags=["Parking Security"])
+
+@router.post("/parking/ocr-plate", response_model=OCRPlateResponse)
+async def scan_plate_number_ocr(req: OCRPlateRequest):
+    """
+    Scans license plate text from webcam snapshot or uploaded photo of a paper/plate.
+    """
+    try:
+        raw_b64 = req.image_base64
+        if "," in raw_b64:
+            raw_b64 = raw_b64.split(",")[1]
+        img_bytes = base64.b64decode(raw_b64)
+        np_arr = np.frombuffer(img_bytes, np.uint8)
+        frame = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
+        
+        if frame is None:
+            raise HTTPException(status_code=400, detail="Citra gambar tidak valid.")
+
+        result = plate_ocr.scan_plate_from_image(frame)
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 @router.post("/parking/process", response_model=VerificationResult)
 async def process_parking_event(req: ProcessParkingRequest):

@@ -12,6 +12,17 @@ class ProcessLiveParkingRequest(BaseModel):
     image_base64: str = Field(..., description="Base64 encoded webcam image frame")
     event_type: str = Field(default="EXIT", example="EXIT")
 
+class OCRPlateRequest(BaseModel):
+    image_base64: str = Field(..., description="Base64 image frame of paper or vehicle plate")
+
+class OCRPlateResponse(BaseModel):
+    success: bool
+    plate_number: Optional[str] = None
+    best_pass: Optional[str] = None
+    raw_text: Optional[str] = None
+    photo_url: Optional[str] = None
+    message: str
+
 class VerificationResult(BaseModel):
     plate_number: str
     event_type: str

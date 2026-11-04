@@ -10,11 +10,11 @@ export const ForensicModal: React.FC<ForensicModalProps> = ({ imageUrl, onClose 
   if (!imageUrl) return null;
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4">
       <div className="bg-white border border-slate-300 rounded-lg max-w-2xl w-full overflow-hidden shadow-xl animate-in fade-in zoom-in-95 duration-100">
         <div className="p-3.5 border-b border-slate-200 flex items-center justify-between bg-slate-50">
           <div className="flex items-center gap-2 text-slate-800">
-            <Camera className="w-4 h-4 text-slate-600" />
+            <Camera className="w-4 h-4 text-blue-600" />
             <span className="font-bold text-xs uppercase tracking-wide">
               Dokumentasi Citra Pengemudi (Kamera CCTV Gerbang)
             </span>
@@ -27,11 +27,11 @@ export const ForensicModal: React.FC<ForensicModalProps> = ({ imageUrl, onClose 
           </button>
         </div>
 
-        <div className="p-4 bg-slate-900 flex flex-col items-center">
+        <div className="p-4 bg-slate-100 flex flex-col items-center">
           <img
             src={imageUrl}
             alt="Forensic Evidence"
-            className="max-h-[420px] w-auto rounded border border-slate-700 object-contain shadow-md"
+            className="max-h-[420px] w-auto rounded border border-slate-300 object-contain shadow-xs"
           />
         </div>
 
