@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { FileText, Eye, AlertCircle, CheckCircle } from 'lucide-react';
+import { FileText, Eye, AlertCircle, CheckCircle, Download } from 'lucide-react';
 import { ParkingLog } from '../types';
 
 interface LogsTableProps {
@@ -15,8 +15,31 @@ export const LogsTable: React.FC<LogsTableProps> = ({ logs, onViewEvidence }) =>
     return true;
   });
 
+  const exportToCSV = () => {
+    if (logs.length === 0) return;
+    const headers = ['ID', 'Waktu Transaksi', 'Nomor Polisi', 'Kunjungan Ke', 'Status Verifikasi', 'Kemiripan ArcFace (%)', 'Aksi Palang', 'Catatan Keputusan'];
+    const rows = logs.map(l => [
+      l.id,
+      `"${new Date(l.timestamp).toLocaleString('id-ID')}"`,
+      `"${l.plate_number}"`,
+      l.visit_number,
+      l.status,
+      l.similarity_score !== null ? (l.similarity_score * 100).toFixed(1) : 'Baseline',
+      l.status === 'ANOMALY' ? 'Terkunci (Ditahan)' : 'Terbuka',
+      `"${(l.decision_notes || '').replace(/"/g, '""')}"`
+    ]);
+    const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement('a');
+    link.setAttribute('href', encodedUri);
+    link.setAttribute('download', `rekap_transaksi_parkir_${Date.now()}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   return (
-    <div className="bg-white border border-slate-200 rounded-lg p-5 shadow-sm">
+    <div className="bg-white border border-slate-200 rounded-lg p-5 shadow-xs">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pb-3 border-b border-slate-200">
         <div className="flex items-center gap-2">
           <FileText className="w-5 h-5 text-blue-700" />
@@ -25,28 +48,40 @@ export const LogsTable: React.FC<LogsTableProps> = ({ logs, onViewEvidence }) =>
           </h3>
         </div>
 
-        {/* Filter Tabs */}
-        <div className="flex items-center bg-slate-100 p-0.5 rounded border border-slate-200 text-xs font-medium">
+        {/* Filter Tabs & Export Button */}
+        <div className="flex items-center gap-2">
           <button
-            onClick={() => setFilter('ALL')}
-            className={`px-3 py-1 rounded transition ${
-              filter === 'ALL'
-                ? 'bg-white text-slate-900 shadow-2xs font-semibold'
-                : 'text-slate-600 hover:text-slate-900'
-            }`}
+            onClick={exportToCSV}
+            disabled={logs.length === 0}
+            className="px-2.5 py-1 bg-white hover:bg-slate-50 border border-slate-300 rounded text-slate-700 text-xs font-semibold flex items-center gap-1.5 transition shadow-2xs disabled:opacity-40"
+            title="Unduh seluruh riwayat dalam format file Excel / CSV"
           >
-            Semua Data ({logs.length})
+            <Download className="w-3.5 h-3.5 text-blue-700" />
+            <span>Unduh CSV</span>
           </button>
-          <button
-            onClick={() => setFilter('ANOMALY')}
-            className={`px-3 py-1 rounded transition ${
-              filter === 'ANOMALY'
-                ? 'bg-red-600 text-white shadow-2xs font-semibold'
-                : 'text-slate-600 hover:text-red-700'
-            }`}
-          >
-            Anomali Saja ({logs.filter(l => l.status === 'ANOMALY').length})
-          </button>
+
+          <div className="flex items-center bg-slate-100 p-0.5 rounded border border-slate-200 text-xs font-medium">
+            <button
+              onClick={() => setFilter('ALL')}
+              className={`px-3 py-1 rounded transition ${
+                filter === 'ALL'
+                  ? 'bg-white text-slate-900 shadow-2xs font-semibold'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              Semua ({logs.length})
+            </button>
+            <button
+              onClick={() => setFilter('ANOMALY')}
+              className={`px-3 py-1 rounded transition ${
+                filter === 'ANOMALY'
+                  ? 'bg-red-600 text-white shadow-2xs font-semibold'
+                  : 'text-slate-600 hover:text-red-700'
+              }`}
+            >
+              Anomali ({logs.filter(l => l.status === 'ANOMALY').length})
+            </button>
+          </div>
         </div>
       </div>
 
@@ -67,7 +102,7 @@ export const LogsTable: React.FC<LogsTableProps> = ({ logs, onViewEvidence }) =>
             {filteredLogs.length === 0 ? (
               <tr>
                 <td colSpan={7} className="py-8 text-center text-slate-400 italic">
-                  Belum ada catatan transaksi parkir. Jalankan simulasi di atas.
+                  Belum ada catatan transaksi parkir. Jalankan simulasi atau webcam di atas.
                 </td>
               </tr>
             ) : (
