@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException, Query
 from typing import List, Optional
 from datetime import datetime
 
-from app.models.schemas import ProcessParkingRequest, VerificationResult
+from app.models.schemas import ProcessParkingRequest, ProcessLiveParkingRequest, VerificationResult
 from app.services.decision_engine import decision_engine
 from app.api.websocket import ws_manager
 from app.database import get_all_logs, get_all_vehicles, reset_database, get_db_connection
@@ -12,7 +12,7 @@ router = APIRouter(prefix="/api", tags=["Parking Security"])
 @router.post("/parking/process", response_model=VerificationResult)
 async def process_parking_event(req: ProcessParkingRequest):
     """
-    Simulates or processes camera feed event for a vehicle.
+    Simulates camera feed event for a vehicle using pre-calibrated identities.
     """
     result = decision_engine.process_transaction(
         plate_input=req.plate_number,
@@ -20,7 +20,28 @@ async def process_parking_event(req: ProcessParkingRequest):
         driver_persona=req.driver_person_id or "driver_owner"
     )
 
-    # Broadcast event via WebSocket to live dashboard
+    await ws_manager.broadcast_event({
+        "type": "PARKING_EVENT",
+        "data": result
+    })
+
+    return result
+
+@router.post("/parking/process-live", response_model=VerificationResult)
+async def process_live_webcam_event(req: ProcessLiveParkingRequest):
+    """
+    Processes real webcam frame captured live from the user's camera.
+    Uses YuNet for face detection and SFace for deep biometrics.
+    """
+    try:
+        result = decision_engine.process_live_webcam(
+            plate_input=req.plate_number,
+            image_base64=req.image_base64,
+            event_type=req.event_type
+        )
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
     await ws_manager.broadcast_event({
         "type": "PARKING_EVENT",
         "data": result

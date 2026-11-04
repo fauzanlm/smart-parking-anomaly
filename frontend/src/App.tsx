@@ -17,9 +17,9 @@ export const App: React.FC = () => {
   const [isResetting, setIsResetting] = useState<boolean>(false);
   const [evidenceModalUrl, setEvidenceModalUrl] = useState<string | null>(null);
   const [wsConnected, setWsConnected] = useState<boolean>(false);
+  const [currentPlate, setCurrentPlate] = useState<string>('B 1234 WLM');
   const wsRef = useRef<WebSocket | null>(null);
 
-  // Play synthetic high-tech audio alert on Anomaly
   const playAlertSound = (type: 'NORMAL' | 'ANOMALY') => {
     try {
       const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
@@ -29,7 +29,6 @@ export const App: React.FC = () => {
       gain.connect(audioCtx.destination);
 
       if (type === 'ANOMALY') {
-        // Two-tone warning beep
         osc.type = 'sawtooth';
         osc.frequency.setValueAtTime(800, audioCtx.currentTime);
         osc.frequency.setValueAtTime(400, audioCtx.currentTime + 0.15);
@@ -38,10 +37,9 @@ export const App: React.FC = () => {
         osc.start();
         osc.stop(audioCtx.currentTime + 0.4);
       } else {
-        // High pleasant chime
         osc.type = 'sine';
-        osc.frequency.setValueAtTime(587.33, audioCtx.currentTime); // D5
-        osc.frequency.setValueAtTime(880.00, audioCtx.currentTime + 0.1); // A5
+        osc.frequency.setValueAtTime(587.33, audioCtx.currentTime);
+        osc.frequency.setValueAtTime(880.00, audioCtx.currentTime + 0.1);
         gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
         gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
         osc.start();
@@ -68,7 +66,6 @@ export const App: React.FC = () => {
   useEffect(() => {
     fetchInitialData();
 
-    // Setup WebSocket for live updates
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const wsUrl = `${protocol}//${window.location.host}/ws`;
     const socket = new WebSocket(wsUrl);
@@ -99,8 +96,29 @@ export const App: React.FC = () => {
     };
   }, []);
 
+  // Handle Real Webcam Live Snapshot
+  const handleCaptureLive = async (base64Image: string) => {
+    setIsProcessing(true);
+    try {
+      const res = await axios.post<VerificationResult>('/api/parking/process-live', {
+        plate_number: currentPlate,
+        image_base64: base64Image,
+        event_type: 'EXIT'
+      });
+      setLastResult(res.data);
+      playAlertSound(res.data.status);
+      await fetchInitialData();
+    } catch (err) {
+      console.error('Error during live webcam verification:', err);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  // Handle Simulation Scenarios
   const handleRunSimulation = async (plate: string, persona: string, eventType: string) => {
     setIsProcessing(true);
+    setCurrentPlate(plate);
     try {
       const res = await axios.post<VerificationResult>('/api/parking/process', {
         plate_number: plate,
@@ -136,32 +154,35 @@ export const App: React.FC = () => {
       <Navbar onReset={handleReset} isResetting={isResetting} wsConnected={wsConnected} />
 
       <main className="flex-1 max-w-7xl w-full mx-auto p-4 md:p-6 space-y-6">
-        {/* Top metrics summary */}
         <StatsOverview stats={stats} />
 
-        {/* Dual Live Camera Feeds */}
-        <DualCameraView lastResult={lastResult} isProcessing={isProcessing} />
+        {/* Dual Camera View (with Live Webcam Support) */}
+        <DualCameraView
+          lastResult={lastResult}
+          isProcessing={isProcessing}
+          onCaptureLive={handleCaptureLive}
+          plateNumber={currentPlate}
+        />
 
-        {/* Decision & Verification Banner */}
+        {/* Verification and Security Gate Banner */}
         <VerificationPanel
           result={lastResult}
           onOpenEvidence={(url) => setEvidenceModalUrl(url)}
         />
 
-        {/* Interactive Thesis Playground */}
+        {/* Interactive Playgrounds & Scenarios */}
         <SimulationPlayground
           onRunSimulation={handleRunSimulation}
           isProcessing={isProcessing}
         />
 
-        {/* Event Logs & Forensic Snaps */}
+        {/* Real-time Log Table */}
         <LogsTable
           logs={logs}
           onViewEvidence={(url) => setEvidenceModalUrl(url)}
         />
       </main>
 
-      {/* Forensic image modal */}
       <ForensicModal
         imageUrl={evidenceModalUrl}
         onClose={() => setEvidenceModalUrl(null)}
@@ -172,7 +193,7 @@ export const App: React.FC = () => {
           Sistem Pengenalan Wajah Pengendara & Plat Nomor Cerdas © {new Date().getFullYear()} — Karya Skripsi William
         </p>
         <p className="mt-1 font-mono text-slate-600">
-          Powered by YOLOv8 (OCR ANPR) • InsightFace SCRFD • ArcFace 512-d Cosine Metric
+          Powered by YOLOv8 (OCR ANPR) • YuNet (Face Detection) • SFace (Deep Biometrics 128-d)
         </p>
       </footer>
     </div>
