@@ -1,4 +1,4 @@
-# PANDUAN LENGKAP SETUP & MENJALANKAN PROYEK DI WINDOWS (UNTUK WILLIAM)
+# PANDUAN LENGKAP SETUP & MENJALANKAN PROYEK DI WINDOWS
 
 Panduan ini dibuat khusus untuk pengguna **Windows** (Windows 10 / Windows 11) yang baru pertama kali menyiapkan lingkungan pemrograman dari nol.
 

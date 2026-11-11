@@ -238,7 +238,7 @@ export const App: React.FC = () => {
 
       <footer className="border-t border-slate-200 bg-white py-4 text-center text-xs text-slate-500">
         <p className="font-medium text-slate-700">
-          Sistem Pengenalan Wajah Pengendara & Plat Nomor Kendaraan © {new Date().getFullYear()} — Tugas Akhir / Skripsi William
+          Sistem Pengenalan Wajah Pengendara & Plat Nomor Kendaraan © {new Date().getFullYear()} — Sistem Deteksi Anomali Parkir
         </p>
         <p className="mt-0.5 text-slate-500">
           Modul OCR: Tesseract 5.5 + Otsu Adaptive Thresholding • Biometrik: YuNet + SFace Cosine Matching

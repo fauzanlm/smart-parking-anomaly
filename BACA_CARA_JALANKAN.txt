@@ -1,8 +1,8 @@
 ====================================================================
-           PANDUAN MENJALANKAN SISTEM SKRIPSI (UNTUK WILLIAM)
+           PANDUAN MENJALANKAN SISTEM MONITORING PARKIR (WINDOWS)
 ====================================================================
 
-Halo William! Ikuti 3 langkah mudah ini untuk menjalankan aplikasi:
+Ikuti 3 langkah mudah berikut untuk menjalankan aplikasi:
 
 --------------------------------------------------------------------
 LANGKAH 1: INSTALL 2 SOFTWARE WAJIB (Hanya 1x Saja)
@@ -46,12 +46,13 @@ Untuk mematikan aplikasi, cukup tutup 2 jendela hitam (CMD)
 yang tadi terbuka di taskbar kamu.
 
 --------------------------------------------------------------------
-BERKAS SKRIPSI LENGKAP SIAP PAKAI:
+BERKAS SKRIPSI / DOKUMENTASI LENGKAP:
 --------------------------------------------------------------------
 Buka folder "docs" di dalam folder ini:
 - docs\BAB_3_METODOLOGI_PENELITIAN.md (Diagram & Rumus Bab 3)
 - docs\BAB_4_HASIL_DAN_PEMBAHASAN.md   (Tabel Uji & Metrik Bab 4)
 - docs\PANDUAN_SIDANG_DAN_DEMO.md     (Kunci Jawaban Sidang Penguji)
+- docs\PANDUAN_SETUP_WINDOWS.md       (Panduan Setup Detail Windows)
 
 Untuk panduan lebih lengkap dengan gambar, buka file:
 HOW_TO_RUN.md

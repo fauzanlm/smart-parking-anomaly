@@ -1,6 +1,6 @@
-# PANDUAN DEMO & JAWABAN SIDANG SKRIPSI (UNTUK WILLIAM)
+# PANDUAN DEMO & JAWABAN SIDANG SKRIPSI
 
-Dokumen ini adalah sontekan (*cheatsheet*) praktis yang disiapkan agar William bisa mendemonstrasikan sistem ini dengan lancar dan menjawab semua pertanyaan dosen penguji dengan percaya diri.
+Dokumen ini adalah sontekan (*cheatsheet*) praktis yang disiapkan agar Anda bisa mendemonstrasikan sistem ini dengan lancar dan menjawab semua pertanyaan dosen penguji dengan percaya diri.
 
 ---
 
@@ -23,7 +23,7 @@ Gunakan tombol-tombol skenario siap pakai di bagian **"Skenario Simulasi & Uji S
 
 ### Langkah 1: Tunjukkan Pembentukan Baseline (Kunjungan 1 - 3)
 1. Klik tombol **`1. Kunjungan #1`**:
-   - Jelaskan ke dosen: *"Pak/Bu, saat mobil William pertama kali masuk/keluar, sistem membaca plat B 1234 WLM dan menyimpan vektor wajahnya sebagai profil awal. Status NORMAL karena belum 3 kali."*
+   - Jelaskan ke dosen: *"Pak/Bu, saat mobil pemilik sah pertama kali masuk/keluar, sistem membaca plat B 1234 WLM dan menyimpan vektor wajahnya sebagai profil awal. Status NORMAL karena belum 3 kali."*
 2. Klik tombol **`2. Kunjungan #2`**:
    - Jelaskan ke dosen: *"Kunjungan kedua, sistem menambahkan variasi wajah pemilik ke database baseline."*
 3. Klik tombol **`3. Kunjungan #3`**:
@@ -32,7 +32,7 @@ Gunakan tombol-tombol skenario siap pakai di bagian **"Skenario Simulasi & Uji S
 ### Langkah 2: Uji Kasus Pengemudi Sah (Kunjungan ke-4)
 1. Klik tombol **`4. Uji Pemilik Sah`**:
    - Perhatikan layar: Status **NORMAL**, ArcFace Similarity tinggi (~85% - 98%), dan banner hijau **"PALANG TERBUKA (AUTO-PASS)"**.
-   - Jelaskan ke dosen: *"Karena wajah pengemudi cocok dengan riwayat baseline William, sistem otomatis membuka palang parkir."*
+   - Jelaskan ke dosen: *"Karena wajah pengemudi cocok dengan riwayat baseline pemilik sah, sistem otomatis membuka palang parkir."*
 
 ### Langkah 3: Uji Kasus Pencurian / Anomali (Kunjungan ke-5)
 1. Klik tombol **`5. Uji Kasus Curanmor!`**:

@@ -1,5 +1,5 @@
 """
-Scientific Evaluation & Benchmarking Script for William's Thesis.
+Scientific Evaluation & Benchmarking Script for Research Evaluation.
 Runs 100 automated test trials (50 Authorized Owners, 50 Unauthorized Intruders/Thieves)
 and computes:
 - Confusion Matrix (TP, TN, FP, FN)
@@ -23,7 +23,7 @@ def run_thesis_benchmark():
     reset_database()
     
     print("=" * 60)
-    print("  MENJALANKAN BENCHMARK EVALUASI ILMIAH (SKRIPSI WILLIAM)  ")
+    print("  MENJALANKAN BENCHMARK EVALUASI ILMIAH (BAB IV)          ")
     print("=" * 60)
 
     # 1. Latency Benchmark
@@ -114,7 +114,7 @@ def run_thesis_benchmark():
     print(f"-> FRR:       {frr:.2f}%")
 
     # Generate Chapter 4 Report
-    report = f"""# HASIL PENGUJIAN & BENCHMARK SISTEM (BAB IV SKRIPSI WILLIAM)
+    report = f"""# HASIL PENGUJIAN & BENCHMARK SISTEM (BAB IV EVALUASI & PEMBAHASAN)
 Tanggal Pengujian: {datetime.now().strftime('%d %B %Y')}
 
 ---

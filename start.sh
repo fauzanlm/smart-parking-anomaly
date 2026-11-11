@@ -7,7 +7,7 @@ DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 cd "$DIR"
 
 echo "=========================================================="
-echo "   SMART PARKING ANOMALY DETECTION (SKRIPSI WILLIAM)     "
+echo "   SMART PARKING ANOMALY DETECTION SYSTEM                "
 echo "   Multi-Modal AI: YOLOv8 ANPR + SCRFD ArcFace Biometric "
 echo "=========================================================="
 

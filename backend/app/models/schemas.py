@@ -4,7 +4,7 @@ from typing import Optional, List, Dict, Any
 class ProcessParkingRequest(BaseModel):
     plate_number: str = Field(..., example="B 1234 XYZ")
     event_type: str = Field(default="EXIT", example="EXIT")
-    driver_person_id: Optional[str] = Field(default="driver_william", description="Identifier to simulate driver identity in tests")
+    driver_person_id: Optional[str] = Field(default="driver_owner", description="Identifier to simulate driver identity in tests")
     notes: Optional[str] = None
 
 class ProcessLiveParkingRequest(BaseModel):

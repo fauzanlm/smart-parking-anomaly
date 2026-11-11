@@ -11,7 +11,7 @@ from app.api.websocket import ws_manager
 app = FastAPI(
     title=settings.PROJECT_NAME,
     version=settings.VERSION,
-    description="Sistem Keamanan Parkir Multi-Modal & Deteksi Anomali Biometrik (Skripsi William)"
+    description="Sistem Keamanan Parkir Multi-Modal & Deteksi Anomali Biometrik"
 )
 
 # CORS configuration

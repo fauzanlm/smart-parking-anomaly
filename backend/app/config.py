@@ -15,7 +15,7 @@ for path in [STORAGE_DIR, FACES_DIR, PLATES_DIR, ANOMALIES_DIR, TEMP_DIR]:
 class Settings:
     PROJECT_NAME: str = "Smart Parking Anomaly Detection"
     VERSION: str = "1.0.0"
-    AUTHOR: str = "William (Skripsi S1)"
+    AUTHOR: str = "Research Team (Computer Vision)"
     
     # Thresholds based on thesis specification
     MIN_VISIT_THRESHOLD: int = 3          # Syarat minimal kunjungan untuk verifikasi biometrik

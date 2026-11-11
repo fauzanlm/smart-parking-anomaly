@@ -1,5 +1,5 @@
 # Smart Parking Multi-Modal Anomaly Detection System
-> **Proyek Penelitian Skripsi: William**  
+> **Sistem Deteksi Anomali Kendaraan & Biometrik Multi-Modal**  
 > **Teknologi:** Python (FastAPI, OpenCV, YOLOv8, SCRFD, ArcFace) + React Vite (Tailwind CSS, WebSockets)
 
 ---

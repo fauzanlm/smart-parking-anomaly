@@ -1,6 +1,6 @@
-# 📖 PANDUAN CARA MENJALANKAN PROYEK (UNTUK WILLIAM)
+# 📖 PANDUAN CARA MENJALANKAN SISTEM MONITORING PARKIR
 
-Halo William! Dokumen ini dibuat khusus untuk memandu kamu dari awal (laptop Windows yang baru terpasang VS Code dan file hasil Download ZIP) sampai aplikasinya bisa menyala dan bisa dipakai sidang skripsi.
+Dokumen ini memandu langkah demi langkah dari awal (laptop Windows yang baru terpasang VS Code dan file hasil Download ZIP) sampai aplikasinya bisa menyala dan siap digunakan untuk pengujian atau demonstrasi.
 
 ---
 
@@ -60,7 +60,7 @@ Kamu punya 2 cara untuk menjalankannya:
 
 > ⏳ **Catatan Waktu Pertama Kali Jalan:**  
 > Saat pertama kali kamu klik `start.bat`, sistem akan mendownload dependensi AI (OpenCV, Torch/ONNX, FastAPI, Tailwind). Ini butuh waktu sekitar 1–3 menit tergantung internet.  
-> Untuk kali kedua dan seterusnya saat kamu mau demo/sidang, aplikasi akan langsung menyala dalam waktu **3 detik**!
+> Untuk kali kedua dan seterusnya, aplikasi akan langsung menyala dalam waktu **3 detik**!
 
 ---
 
@@ -72,9 +72,9 @@ Jika browser tidak terbuka otomatis, buka Google Chrome / Microsoft Edge dan ket
 
 ---
 
-## 🎬 LANGKAH 5: Cara Demo Skenario di Depan Dosen
+## 🎬 LANGKAH 5: Cara Demo Skenario di Depan Penguji
 
-Saat sidang skripsi, di halaman dashboard [http://localhost:3000](http://localhost:3000), kamu tinggal klik tombol-tombol yang ada di bagian **"Panel Pengujian & Skenario Simulasi Sidang"**:
+Saat sidang skripsi / presentasi, di halaman dashboard [http://localhost:3000](http://localhost:3000), kamu tinggal klik tombol-tombol yang ada di bagian **"Panel Pengujian & Skenario Simulasi Sidang"**:
 
 1. Klik tombol **`1. Kunjungan #1`** $\rightarrow$ Status NORMAL (Registrasi baseline wajah awal).
 2. Klik tombol **`2. Kunjungan #2`** $\rightarrow$ Status NORMAL (Registrasi baseline ke-2).
@@ -87,12 +87,13 @@ Saat sidang skripsi, di halaman dashboard [http://localhost:3000](http://localho
 
 ---
 
-## 📄 Amunisi Naskah Skripsi Kamu (Bisa Langsung Copy-Paste)
+## 📄 Amunisi Naskah Skripsi / Laporan (Bisa Langsung Copy-Paste)
 
 Buka folder **`docs/`** di dalam proyek ini:
 * 📘 **`docs/BAB_3_METODOLOGI_PENELITIAN.md`** $\rightarrow$ Alur penelitian, diagram alir, dan rumus Cosine Similarity ArcFace.
 * 📗 **`docs/BAB_4_HASIL_DAN_PEMBAHASAN.md`** $\rightarrow$ Tabel Black-Box Testing, Confusion Matrix 100%, FAR/FRR 0%, dan tabel latensi komputasi.
 * 📙 **`docs/PANDUAN_SIDANG_DAN_DEMO.md`** $\rightarrow$ Kunci jawaban atas pertanyaan-pertanyaan kritis dosen penguji.
+* 🖥️ **`docs/PANDUAN_SETUP_WINDOWS.md`** $\rightarrow$ Panduan teknis setup Windows lengkap dari nol.
 
 ---
 

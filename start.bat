@@ -1,7 +1,7 @@
 @echo off
-title Smart Parking Anomaly Detection (Skripsi William)
+title Smart Parking Anomaly Detection System
 echo ==========================================================
-echo    SMART PARKING ANOMALY DETECTION (SKRIPSI WILLIAM)     
+echo    SMART PARKING ANOMALY DETECTION SYSTEM
 echo    Multi-Modal AI: YOLOv8 ANPR + SCRFD ArcFace Biometric 
 echo ==========================================================
 

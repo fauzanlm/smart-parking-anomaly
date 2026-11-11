@@ -17,7 +17,7 @@ export const SimulationPlayground: React.FC<SimulationPlaygroundProps> = ({
   const presets = [
     {
       title: '1. Kunjungan #1',
-      desc: 'Kendaraan William Masuk/Keluar (Registrasi Baseline 1)',
+      desc: 'Kendaraan Terdaftar Masuk/Keluar (Registrasi Baseline 1)',
       plate: 'B 1234 WLM',
       persona: 'driver_owner',
       event: 'EXIT',
@@ -26,7 +26,7 @@ export const SimulationPlayground: React.FC<SimulationPlaygroundProps> = ({
     },
     {
       title: '2. Kunjungan #2',
-      desc: 'Kendaraan William Masuk/Keluar (Registrasi Baseline 2)',
+      desc: 'Kendaraan Terdaftar Masuk/Keluar (Registrasi Baseline 2)',
       plate: 'B 1234 WLM',
       persona: 'driver_owner',
       event: 'EXIT',
@@ -35,7 +35,7 @@ export const SimulationPlayground: React.FC<SimulationPlaygroundProps> = ({
     },
     {
       title: '3. Kunjungan #3',
-      desc: 'Kendaraan William Masuk/Keluar (Syarat 3x Terpenuhi)',
+      desc: 'Kendaraan Terdaftar Masuk/Keluar (Syarat 3x Terpenuhi)',
       plate: 'B 1234 WLM',
       persona: 'driver_owner',
       event: 'EXIT',
@@ -44,7 +44,7 @@ export const SimulationPlayground: React.FC<SimulationPlaygroundProps> = ({
     },
     {
       title: '4. Uji Pemilik Sah',
-      desc: 'Kunjungan #4 — William Keluar (Status Normal / Palang Buka)',
+      desc: 'Kunjungan #4 — Pemilik Sah Keluar (Status Normal / Palang Buka)',
       plate: 'B 1234 WLM',
       persona: 'driver_owner',
       event: 'EXIT',
@@ -141,7 +141,7 @@ export const SimulationPlayground: React.FC<SimulationPlaygroundProps> = ({
             onChange={(e) => setCustomPersona(e.target.value)}
             className="w-full bg-white border border-slate-300 rounded px-3 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-1 focus:ring-blue-600 focus:border-blue-600"
           >
-            <option value="driver_owner">William (Pemilik Sah)</option>
+            <option value="driver_owner">Pemilik Sah (Authorized Driver)</option>
             <option value="driver_family">Keluarga (Pengemudi Sah #2)</option>
             <option value="driver_thief">Pengemudi Asing / Maling</option>
           </select>

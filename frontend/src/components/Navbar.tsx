@@ -45,7 +45,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onReset, isResetting, wsConnecte
               </span>
             </div>
             <p className="text-xs text-slate-500">
-              Korelasi Plat Nomor (OCR) & Biometrik Wajah (ArcFace) — Skripsi William
+              Korelasi Plat Nomor (OCR) & Biometrik Wajah (ArcFace / SFace) — Pos Gerbang Parkir
             </p>
           </div>
         </div>
