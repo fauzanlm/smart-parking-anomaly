@@ -1,3 +1,4 @@
+import os
 import re
 import cv2
 import numpy as np
@@ -8,6 +9,17 @@ from app.config import PLATES_DIR
 
 try:
     import pytesseract
+    # Auto-detect Tesseract executable on Windows if not in PATH
+    if os.name == "nt":
+        windows_paths = [
+            r"C:\Program Files\Tesseract-OCR\tesseract.exe",
+            r"C:\Program Files (x86)\Tesseract-OCR\tesseract.exe",
+            os.path.expandvars(r"%LOCALAPPDATA%\Programs\Tesseract-OCR\tesseract.exe"),
+        ]
+        for p in windows_paths:
+            if os.path.exists(p):
+                pytesseract.pytesseract.tesseract_cmd = p
+                break
 except ImportError:
     pytesseract = None
 
