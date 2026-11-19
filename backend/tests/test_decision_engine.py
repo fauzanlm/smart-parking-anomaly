@@ -34,6 +34,7 @@ def test_gate_in_and_gate_out_matching_owner():
     assert res_out["gate_action"] == "OPEN"
     assert res_out["similarity_percentage"] >= 65.0
     assert res_out["high_res_camera_triggered"] is False
+    assert res_out["camera_3_triggered"] is False
 
 def test_gate_in_and_gate_out_different_driver_anomaly():
     test_plate = "B 8888 SEC"
@@ -56,7 +57,9 @@ def test_gate_in_and_gate_out_different_driver_anomaly():
     assert res_out["gate_action"] == "LOCK"
     assert res_out["similarity_percentage"] < 65.0
     assert res_out["high_res_camera_triggered"] is True
+    assert res_out["camera_3_triggered"] is True
     assert res_out["anomaly_evidence_url"] is not None
+    assert res_out["camera_3_evidence_url"] is not None
 
 def test_gate_out_unregistered_vehicle():
     # Kendaraan keluar tanpa pernah tercatat masuk (Gate-In)
@@ -68,3 +71,4 @@ def test_gate_out_unregistered_vehicle():
     assert res_out["status"] == "ANOMALY"
     assert res_out["gate_action"] == "LOCK"
     assert res_out["high_res_camera_triggered"] is True
+    assert res_out["camera_3_triggered"] is True

@@ -87,6 +87,34 @@ export const VerificationPanel: React.FC<VerificationPanelProps> = ({ result, on
           {result.decision_notes}
         </div>
 
+        {/* Status Kamera 3 Berdasarkan Flowchart Skripsi */}
+        {!isGateIn && (
+          <div>
+            {isAnomaly ? (
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 p-3 rounded-lg bg-red-100/80 border border-red-300 text-xs font-bold text-red-900">
+                <div className="flex items-center gap-2">
+                  <AlertTriangle className="w-4 h-4 text-red-600 flex-shrink-0 animate-bounce" />
+                  <span>Status: ANOMALI — Kamera 3 MELAKUKAN TRIGGER terhadap pengendara untuk merekam bukti resolusi tinggi!</span>
+                </div>
+                {result.anomaly_evidence_url && (
+                  <button
+                    onClick={() => onOpenEvidence(result.anomaly_evidence_url!)}
+                    className="px-3 py-1 bg-red-600 hover:bg-red-700 text-white rounded text-xs font-bold shadow-2xs transition active:scale-95 flex items-center gap-1"
+                  >
+                    <FileImage className="w-3.5 h-3.5" />
+                    <span>Lihat Hasil Jepretan Kamera 3</span>
+                  </button>
+                )}
+              </div>
+            ) : (
+              <div className="flex items-center gap-2 p-2.5 rounded-lg bg-emerald-50 border border-emerald-200 text-xs font-semibold text-emerald-800">
+                <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+                <span>Status: NORMAL — Kamera 3 TIDAK melakukan trigger terhadap pengendara (Tetap Siaga / Standby).</span>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Gate-Out 1-to-1 Side-by-Side Face Comparison */}
         {!isGateIn && (
           <div className="bg-slate-50 border border-slate-200 rounded-lg p-4">
