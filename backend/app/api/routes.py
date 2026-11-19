@@ -73,9 +73,12 @@ async def process_live_webcam_event(req: ProcessLiveParkingRequest):
     Supports GATE_IN (stores entry face ticket) and GATE_OUT (compares with entry face).
     """
     try:
+        face_img = req.image_base64 or req.face_image_base64
         result = decision_engine.process_live_webcam(
             plate_input=req.plate_number,
-            image_base64=req.image_base64,
+            image_base64=face_img,
+            plate_image_base64=req.plate_image_base64,
+            camera3_image_base64=req.camera3_image_base64,
             gate_mode=req.gate_mode,
             event_type=req.event_type
         )

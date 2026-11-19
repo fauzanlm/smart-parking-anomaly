@@ -21,6 +21,22 @@ Dokumen ini adalah sontekan (*cheatsheet*) praktis yang disiapkan agar Anda bisa
 
 ---
 
+## 1.5 Fungsi & Peran 3 Kamera Pada Sistem (Sesuai Flowchart Dosen)
+
+1. **Kamera 1 (Kamera Plat Nomor - ANPR View):**
+   - Menangkap citra plat nomor kendaraan secara kontinu (*live video stream*).
+   - Diproses dengan YOLOv8 dan Tesseract OCR untuk membaca teks nomor polisi secara otomatis.
+2. **Kamera 2 (Kamera Pengemudi - Biometric View):**
+   - Menangkap citra wajah pengemudi secara kontinu (*live video stream*).
+   - Diproses dengan SCRFD/YuNet untuk deteksi wajah dan ArcFace/SFace untuk ekstraksi ciri 128-d.
+3. **Kamera 3 (Kamera Standby - Hi-Res Forensic Trigger):**
+   - Kamera resolusi tinggi dalam mode siaga (*standby*).
+   - **Sesuai Flowchart:**
+     - Jika status **NORMAL**: Kamera 3 **TIDAK** melakukan trigger.
+     - Jika status **ANOMALI**: Kamera 3 **MELAKUKAN TRIGGER** otomatis memotret foto beresolusi tinggi sebagai barang bukti forensik digital.
+
+---
+
 ## 2. Skenario Live Demo di Depan Dosen Penguji
 
 Gunakan tombol-tombol skenario siap pakai di bagian **"Panel Pengujian & Skenario Simulasi Sidang"**:
@@ -84,3 +100,9 @@ Gunakan tombol-tombol skenario siap pakai di bagian **"Panel Pengujian & Skenari
 ### Q4: "Apakah sistem ini cukup cepat untuk diterapkan di gerbang parkir nyata tanpa menyebabkan macet?"
 > **Jawaban:**  
 > *"Sangat cepat, Pak/Bu. Berdasarkan pengujian benchmark pada Bab IV, total waktu inferensi komputasi dari proses OCR plat, deteksi wajah YuNet, ekstraksi ArcFace, hingga keputusan palang terbuka rata-rata hanya membutuhkan waktu **~85 milidetik (di bawah 0.1 detik)**. Ini jauh lebih cepat daripada respon tombol tiket manual konvensional."*
+
+---
+
+### Q5: "Mengapa menggunakan 3 kamera, mengapa Kamera 3 tidak merekam terus-menerus?"
+> **Jawaban:**  
+> *"Kamera 1 dan Kamera 2 beroperasi secara kontinu dengan resolusi optimal agar proses inferensi real-time tetap sangat cepat (di bawah 100 ms). Sedangkan Kamera 3 menggunakan sensor beresolusi tinggi (*ultra-high resolution*) yang khusus ditempatkan dalam mode siaga (*standby*). Kamera 3 hanya dipicu saat status ANOMALI terjadi untuk menghemat konsumsi bandwidth jaringan dan kapasitas storage pos satpam, namun tetap menjamin tersedianya bukti digital forensik dengan ketajaman maksimal saat terjadi tindak kriminal."*
