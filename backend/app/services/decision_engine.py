@@ -471,11 +471,11 @@ class ParkingDecisionEngine:
                 ocr_res = plate_ocr.scan_plate_from_image(plate_frame)
                 if ocr_res.get("success") and ocr_res.get("plate_number"):
                     clean_plate = ocr_res["plate_number"]
-                plate_file = self._save_plate_frame(plate_frame, clean_plate or (plate_input or "B 1234 WLM"))
+                plate_file = self._save_plate_frame(plate_frame, clean_plate or (plate_input or "B 1234 SKR"))
 
         # Fallback to manual plate input if OCR did not catch
         if not clean_plate:
-            raw_input = plate_input if plate_input else "B 1234 WLM"
+            raw_input = plate_input.strip() if (plate_input and plate_input.strip()) else "B 1234 SKR"
             clean_plate, _ = plate_ocr.process_plate_image(np.zeros((10, 10, 3)), raw_input)
 
         # 2. CAMERA 2: Process Driver Face Frame

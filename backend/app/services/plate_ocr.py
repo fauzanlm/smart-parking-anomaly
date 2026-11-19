@@ -48,7 +48,7 @@ class LicensePlateOCR:
         if pytesseract is None:
             return {
                 "success": False,
-                "plate_number": "B 1234 WLM",
+                "plate_number": None,
                 "message": "Pytesseract tidak terpasang. Mode simulasi aktif."
             }
 
@@ -116,7 +116,7 @@ class LicensePlateOCR:
         }
 
     def process_plate_image(self, image_np: np.ndarray, simulated_plate: str = None) -> Tuple[str, Dict[str, Any]]:
-        plate_str = simulated_plate if simulated_plate else "B 1234 WLM"
+        plate_str = simulated_plate if simulated_plate else "B 1234 SKR"
         clean_plate = self.clean_plate_text(plate_str)
         
         meta = {

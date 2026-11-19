@@ -19,8 +19,8 @@ export const App: React.FC = () => {
   const [isResetting, setIsResetting] = useState<boolean>(false);
   const [evidenceModalUrl, setEvidenceModalUrl] = useState<string | null>(null);
   const [wsConnected, setWsConnected] = useState<boolean>(false);
-  const [currentPlate, setCurrentPlate] = useState<string>('B 1234 WLM');
-  const [activeGateMode, setActiveGateMode] = useState<'GATE_IN' | 'GATE_OUT'>('GATE_OUT');
+  const [currentPlate, setCurrentPlate] = useState<string>('');
+  const [activeGateMode, setActiveGateMode] = useState<'GATE_IN' | 'GATE_OUT'>('GATE_IN');
   
   // Real OCR on paper plate state
   const [scannedPlatePhoto, setScannedPlatePhoto] = useState<string | null>(null);
