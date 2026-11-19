@@ -144,20 +144,29 @@ export const App: React.FC = () => {
     }
   };
 
-  const handleCaptureLive = async (base64Image: string) => {
+  const handleCaptureLive = async (
+    faceImageBase64: string,
+    plateImageBase64?: string,
+    camera3ImageBase64?: string
+  ) => {
     setIsProcessing(true);
     try {
       const res = await axios.post<VerificationResult>('/api/parking/process-live', {
         plate_number: currentPlate,
-        image_base64: base64Image,
+        image_base64: faceImageBase64,
+        plate_image_base64: plateImageBase64,
+        camera3_image_base64: camera3ImageBase64,
         gate_mode: activeGateMode,
         event_type: activeGateMode === 'GATE_IN' ? 'ENTRY' : 'EXIT'
       });
       setLastResult(res.data);
+      if (res.data.plate_number) {
+        setCurrentPlate(res.data.plate_number);
+      }
       playAlertSound(res.data.status);
       await fetchInitialData();
     } catch (err) {
-      console.error('Error during live webcam verification:', err);
+      console.error('Error during live multi-camera verification:', err);
     } finally {
       setIsProcessing(false);
     }

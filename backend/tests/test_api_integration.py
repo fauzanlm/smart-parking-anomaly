@@ -51,6 +51,8 @@ def test_gate_in_gate_out_api_flow():
     assert data_out["status"] == "NORMAL"
     assert data_out["gate_action"] == "OPEN"
     assert data_out["similarity_percentage"] >= 65.0
+    assert data_out["camera_3_triggered"] is False
+    assert data_out["high_res_camera_triggered"] is False
 
 def test_gate_out_anomaly_intruder():
     test_plate = "B 8888 SEC"
@@ -74,6 +76,7 @@ def test_gate_out_anomaly_intruder():
     assert data_thief["status"] == "ANOMALY"
     assert data_thief["gate_action"] == "LOCK"
     assert data_thief["high_res_camera_triggered"] is True
+    assert data_thief["camera_3_triggered"] is True
     assert data_thief["similarity_percentage"] < 65.0
 
 def test_gate_out_without_entry():

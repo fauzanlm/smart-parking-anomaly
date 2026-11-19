@@ -9,8 +9,11 @@ class ProcessParkingRequest(BaseModel):
     notes: Optional[str] = None
 
 class ProcessLiveParkingRequest(BaseModel):
-    plate_number: str = Field(..., json_schema_extra={"example": "B 1234 WLM"})
-    image_base64: str = Field(..., description="Base64 encoded webcam image frame")
+    plate_number: Optional[str] = None
+    plate_image_base64: Optional[str] = Field(default=None, description="Camera 1: ANPR plate image frame")
+    image_base64: Optional[str] = Field(default=None, description="Camera 2: Driver face image frame")
+    face_image_base64: Optional[str] = Field(default=None, description="Camera 2: Driver face image frame (alias)")
+    camera3_image_base64: Optional[str] = Field(default=None, description="Camera 3: High-Res evidence snapshot (triggered on anomaly)")
     gate_mode: str = Field(default="GATE_OUT", json_schema_extra={"example": "GATE_OUT"})
     event_type: str = Field(default="EXIT", json_schema_extra={"example": "EXIT"})
 
@@ -40,12 +43,16 @@ class VerificationResult(BaseModel):
     decision_notes: str
     gate_action: str # 'OPEN' or 'LOCK'
     high_res_camera_triggered: bool = False
+    camera_3_triggered: bool = False # Specific to 3-camera architecture
     face_photo_url: Optional[str] = None
     plate_photo_url: Optional[str] = None
     entry_photo_url: Optional[str] = None
     exit_photo_url: Optional[str] = None
     baseline_photo_url: Optional[str] = None
     anomaly_evidence_url: Optional[str] = None
+    camera_1_plate_photo_url: Optional[str] = None
+    camera_2_face_photo_url: Optional[str] = None
+    camera_3_evidence_url: Optional[str] = None
     driver_persona: Optional[str] = None
 
 class ParkingSessionItem(BaseModel):

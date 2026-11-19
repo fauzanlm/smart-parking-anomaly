@@ -12,12 +12,16 @@ export interface VerificationResult {
   decision_notes: string;
   gate_action: 'OPEN' | 'LOCK';
   high_res_camera_triggered: boolean;
+  camera_3_triggered?: boolean;
   face_photo_url: string | null;
   plate_photo_url: string | null;
   entry_photo_url: string | null;
   exit_photo_url: string | null;
   baseline_photo_url: string | null;
   anomaly_evidence_url: string | null;
+  camera_1_plate_photo_url?: string | null;
+  camera_2_face_photo_url?: string | null;
+  camera_3_evidence_url?: string | null;
   driver_persona: string;
 }
 
