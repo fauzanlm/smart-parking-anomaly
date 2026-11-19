@@ -9,50 +9,50 @@ interface StatsOverviewProps {
 export const StatsOverview: React.FC<StatsOverviewProps> = ({ stats }) => {
   return (
     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-      {/* Total Kendaraan */}
+      {/* Kendaraan di Dalam Area Parkir (Active Sessions) */}
       <div className="bg-white border border-slate-200 rounded-lg p-4 shadow-sm flex items-center justify-between">
         <div>
           <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
-            Kendaraan Terdata
+            Sedang Parkir (Gate-In)
           </span>
-          <p className="text-2xl font-bold text-slate-900 mt-1">{stats?.total_vehicles ?? 0}</p>
+          <p className="text-2xl font-bold text-blue-700 mt-1">{stats?.currently_parked ?? 0}</p>
         </div>
-        <div className="p-2.5 bg-slate-100 rounded-lg text-slate-600">
+        <div className="p-2.5 bg-blue-50 rounded-lg text-blue-600">
           <Car className="w-5 h-5" />
         </div>
       </div>
 
-      {/* Total Transaksi / Pemindaian */}
+      {/* Total Transaksi Gerbang */}
       <div className="bg-white border border-slate-200 rounded-lg p-4 shadow-sm flex items-center justify-between">
         <div>
           <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
-            Total Pemindaian
+            Total Transaksi
           </span>
           <p className="text-2xl font-bold text-slate-900 mt-1">{stats?.total_transactions ?? 0}</p>
         </div>
-        <div className="p-2.5 bg-blue-50 text-blue-600 rounded-lg">
+        <div className="p-2.5 bg-slate-100 text-slate-700 rounded-lg">
           <Scan className="w-5 h-5" />
         </div>
       </div>
 
-      {/* Akses Normal */}
+      {/* Akses Keluar Normal */}
       <div className="bg-white border border-slate-200 rounded-lg p-4 shadow-sm flex items-center justify-between">
         <div>
           <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
-            Lolos Normal
+            Lolos Normal (Keluar)
           </span>
-          <p className="text-2xl font-bold text-emerald-700 mt-1">{stats?.total_normal ?? 0}</p>
+          <p className="text-2xl font-bold text-emerald-700 mt-1">{stats?.total_completed ?? 0}</p>
         </div>
         <div className="p-2.5 bg-emerald-50 text-emerald-600 rounded-lg">
           <CheckCircle2 className="w-5 h-5" />
         </div>
       </div>
 
-      {/* Anomali Terdeteksi */}
+      {/* Anomali Terdeteksi (Wajah Beda / Curanmor) */}
       <div className="bg-white border border-slate-200 rounded-lg p-4 shadow-sm flex items-center justify-between">
         <div>
           <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
-            Anomali / Tahanan
+            Anomali / Tertahan
           </span>
           <p className="text-2xl font-bold text-red-700 mt-1">{stats?.total_anomalies ?? 0}</p>
         </div>

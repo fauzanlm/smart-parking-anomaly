@@ -4,20 +4,23 @@ import { Navbar } from './components/Navbar';
 import { StatsOverview } from './components/StatsOverview';
 import { DualCameraView } from './components/DualCameraView';
 import { VerificationPanel } from './components/VerificationPanel';
+import { ActiveParkingList } from './components/ActiveParkingList';
 import { SimulationPlayground } from './components/SimulationPlayground';
 import { LogsTable } from './components/LogsTable';
 import { ForensicModal } from './components/ForensicModal';
-import { VerificationResult, ParkingLog, SystemStats } from './types';
+import { VerificationResult, ParkingLog, SystemStats, ParkingSession } from './types';
 
 export const App: React.FC = () => {
   const [lastResult, setLastResult] = useState<VerificationResult | null>(null);
   const [logs, setLogs] = useState<ParkingLog[]>([]);
+  const [activeSessions, setActiveSessions] = useState<ParkingSession[]>([]);
   const [stats, setStats] = useState<SystemStats | null>(null);
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
   const [isResetting, setIsResetting] = useState<boolean>(false);
   const [evidenceModalUrl, setEvidenceModalUrl] = useState<string | null>(null);
   const [wsConnected, setWsConnected] = useState<boolean>(false);
   const [currentPlate, setCurrentPlate] = useState<string>('B 1234 WLM');
+  const [activeGateMode, setActiveGateMode] = useState<'GATE_IN' | 'GATE_OUT'>('GATE_OUT');
   
   // Real OCR on paper plate state
   const [scannedPlatePhoto, setScannedPlatePhoto] = useState<string | null>(null);
@@ -58,12 +61,14 @@ export const App: React.FC = () => {
 
   const fetchInitialData = async () => {
     try {
-      const [logsRes, statsRes] = await Promise.all([
+      const [logsRes, statsRes, sessionsRes] = await Promise.all([
         axios.get<ParkingLog[]>('/api/parking/logs'),
-        axios.get<SystemStats>('/api/stats')
+        axios.get<SystemStats>('/api/stats'),
+        axios.get<ParkingSession[]>('/api/parking/active-sessions')
       ]);
       setLogs(logsRes.data);
       setStats(statsRes.data);
+      setActiveSessions(sessionsRes.data);
     } catch (err) {
       console.error('Failed to load initial parking data:', err);
     }
@@ -145,7 +150,8 @@ export const App: React.FC = () => {
       const res = await axios.post<VerificationResult>('/api/parking/process-live', {
         plate_number: currentPlate,
         image_base64: base64Image,
-        event_type: 'EXIT'
+        gate_mode: activeGateMode,
+        event_type: activeGateMode === 'GATE_IN' ? 'ENTRY' : 'EXIT'
       });
       setLastResult(res.data);
       playAlertSound(res.data.status);
@@ -157,14 +163,16 @@ export const App: React.FC = () => {
     }
   };
 
-  const handleRunSimulation = async (plate: string, persona: string, eventType: string) => {
+  const handleRunSimulation = async (plate: string, persona: string, gateMode: 'GATE_IN' | 'GATE_OUT') => {
     setIsProcessing(true);
     setCurrentPlate(plate);
+    setActiveGateMode(gateMode);
     try {
       const res = await axios.post<VerificationResult>('/api/parking/process', {
         plate_number: plate,
         driver_person_id: persona,
-        event_type: eventType
+        gate_mode: gateMode,
+        event_type: gateMode === 'GATE_IN' ? 'ENTRY' : 'EXIT'
       });
 
       setLastResult(res.data);
@@ -175,6 +183,12 @@ export const App: React.FC = () => {
     } finally {
       setIsProcessing(false);
     }
+  };
+
+  const handleSelectVehicleForExit = (plate: string) => {
+    setCurrentPlate(plate);
+    setActiveGateMode('GATE_OUT');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleReset = async () => {
@@ -197,40 +211,51 @@ export const App: React.FC = () => {
       <Navbar onReset={handleReset} isResetting={isResetting} wsConnected={wsConnected} />
 
       <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 space-y-5">
+        {/* Metric Cards */}
         <StatsOverview stats={stats} />
 
-        {/* Dual Camera Monitor with Paper OCR & Live Webcam Biometric */}
+        {/* Dual Live Camera Feeds with Gate Mode Toggle */}
         <DualCameraView
           lastResult={lastResult}
           isProcessing={isProcessing}
           onCaptureLive={handleCaptureLive}
           onScanPlateImage={handleScanPlateImage}
           plateNumber={currentPlate}
-          onPlateChange={(plate) => setCurrentPlate(plate)}
+          onPlateChange={(p) => setCurrentPlate(p)}
           scannedPlatePhoto={scannedPlatePhoto}
           ocrMessage={ocrMessage}
           isScanningPlate={isScanningPlate}
+          gateMode={activeGateMode}
+          onGateModeChange={(m) => setActiveGateMode(m)}
         />
 
-        {/* Verification Alert & Gate Status */}
+        {/* Verification & Side-by-Side Biometric Comparison Panel */}
         <VerificationPanel
           result={lastResult}
           onOpenEvidence={(url) => setEvidenceModalUrl(url)}
         />
 
-        {/* Simulation Scenarios */}
+        {/* Active Parking Sessions List */}
+        <ActiveParkingList
+          sessions={activeSessions}
+          onSelectVehicleForExit={handleSelectVehicleForExit}
+          onViewPhoto={(url) => setEvidenceModalUrl(url)}
+        />
+
+        {/* Scenario Simulation Playground */}
         <SimulationPlayground
           onRunSimulation={handleRunSimulation}
           isProcessing={isProcessing}
         />
 
-        {/* Logs Table */}
+        {/* Chronological Gate Logs Table */}
         <LogsTable
           logs={logs}
           onViewEvidence={(url) => setEvidenceModalUrl(url)}
         />
       </main>
 
+      {/* Forensic Evidence Modal */}
       <ForensicModal
         imageUrl={evidenceModalUrl}
         onClose={() => setEvidenceModalUrl(null)}
@@ -238,10 +263,10 @@ export const App: React.FC = () => {
 
       <footer className="border-t border-slate-200 bg-white py-4 text-center text-xs text-slate-500">
         <p className="font-medium text-slate-700">
-          Sistem Pengenalan Wajah Pengendara & Plat Nomor Kendaraan © {new Date().getFullYear()} — Sistem Deteksi Anomali Parkir
+          Sistem Verifikasi Biometrik Gate-In vs Gate-Out © {new Date().getFullYear()} — Deteksi Anomali Parkir
         </p>
         <p className="mt-0.5 text-slate-500">
-          Modul OCR: Tesseract 5.5 + Otsu Adaptive Thresholding • Biometrik: YuNet + SFace Cosine Matching
+          OCR Plat: Tesseract 5.5 + Otsu • Biometrik Wajah: YuNet (Detection) + ArcFace / SFace (128-d Cosine Matching)
         </p>
       </footer>
     </div>

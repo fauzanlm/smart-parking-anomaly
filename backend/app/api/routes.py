@@ -10,12 +10,19 @@ from app.models.schemas import (
     ProcessLiveParkingRequest,
     OCRPlateRequest,
     OCRPlateResponse,
-    VerificationResult
+    VerificationResult,
+    ParkingSessionItem
 )
 from app.services.decision_engine import decision_engine
 from app.services.plate_ocr import plate_ocr
 from app.api.websocket import ws_manager
-from app.database import get_all_logs, get_all_vehicles, reset_database, get_db_connection
+from app.database import (
+    get_all_logs,
+    get_all_vehicles,
+    reset_database,
+    get_all_active_sessions,
+    get_system_stats
+)
 
 router = APIRouter(prefix="/api", tags=["Parking Security"])
 
@@ -43,10 +50,11 @@ async def scan_plate_number_ocr(req: OCRPlateRequest):
 @router.post("/parking/process", response_model=VerificationResult)
 async def process_parking_event(req: ProcessParkingRequest):
     """
-    Simulates camera feed event for a vehicle using pre-calibrated identities.
+    Processes Gate-In or Gate-Out simulation event.
     """
     result = decision_engine.process_transaction(
         plate_input=req.plate_number,
+        gate_mode=req.gate_mode,
         event_type=req.event_type,
         driver_persona=req.driver_person_id or "driver_owner"
     )
@@ -62,12 +70,13 @@ async def process_parking_event(req: ProcessParkingRequest):
 async def process_live_webcam_event(req: ProcessLiveParkingRequest):
     """
     Processes real webcam frame captured live from the user's camera.
-    Uses YuNet for face detection and SFace for deep biometrics.
+    Supports GATE_IN (stores entry face ticket) and GATE_OUT (compares with entry face).
     """
     try:
         result = decision_engine.process_live_webcam(
             plate_input=req.plate_number,
             image_base64=req.image_base64,
+            gate_mode=req.gate_mode,
             event_type=req.event_type
         )
     except Exception as e:
@@ -79,6 +88,13 @@ async def process_live_webcam_event(req: ProcessLiveParkingRequest):
     })
 
     return result
+
+@router.get("/parking/active-sessions", response_model=List[ParkingSessionItem])
+async def list_active_parking_sessions():
+    """
+    Returns list of vehicles currently parked inside the area (IN_PARKING).
+    """
+    return get_all_active_sessions()
 
 @router.get("/parking/logs")
 async def get_parking_logs(limit: int = Query(50, ge=1, le=200), anomaly_only: bool = False):
@@ -93,35 +109,13 @@ async def list_vehicles():
     return get_all_vehicles()
 
 @router.get("/stats")
-async def get_system_stats():
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute("SELECT COUNT(*) as count FROM vehicles")
-    total_vehicles = cursor.fetchone()["count"]
-    
-    cursor.execute("SELECT COUNT(*) as count FROM parking_logs")
-    total_logs = cursor.fetchone()["count"]
-    
-    cursor.execute("SELECT COUNT(*) as count FROM parking_logs WHERE status = 'ANOMALY'")
-    total_anomalies = cursor.fetchone()["count"]
-    
-    cursor.execute("SELECT COUNT(*) as count FROM parking_logs WHERE status = 'NORMAL'")
-    total_normal = cursor.fetchone()["count"]
-    conn.close()
-
-    return {
-        "total_vehicles": total_vehicles,
-        "total_transactions": total_logs,
-        "total_anomalies": total_anomalies,
-        "total_normal": total_normal,
-        "anomaly_rate_percent": round((total_anomalies / total_logs * 100), 1) if total_logs > 0 else 0.0
-    }
+async def get_stats():
+    return get_system_stats()
 
 @router.post("/parking/reset")
 async def reset_system():
     reset_database()
     await ws_manager.broadcast_event({
-        "type": "SYSTEM_RESET",
-        "message": "Database berhasil direset untuk pengujian baru."
+        "type": "SYSTEM_RESET"
     })
     return {"message": "Database berhasil direset."}

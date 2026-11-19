@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { FileText, Eye, AlertCircle, CheckCircle, Download } from 'lucide-react';
+import { FileText, Eye, AlertCircle, CheckCircle, Download, LogIn, LogOut } from 'lucide-react';
 import { ParkingLog } from '../types';
 
 interface LogsTableProps {
@@ -17,14 +17,14 @@ export const LogsTable: React.FC<LogsTableProps> = ({ logs, onViewEvidence }) =>
 
   const exportToCSV = () => {
     if (logs.length === 0) return;
-    const headers = ['ID', 'Waktu Transaksi', 'Nomor Polisi', 'Kunjungan Ke', 'Status Verifikasi', 'Kemiripan ArcFace (%)', 'Aksi Palang', 'Catatan Keputusan'];
+    const headers = ['ID', 'Waktu Transaksi', 'Pos Gerbang', 'Nomor Polisi', 'Status Verifikasi', 'Kemiripan ArcFace (%)', 'Aksi Palang', 'Catatan Keputusan'];
     const rows = logs.map(l => [
       l.id,
       `"${new Date(l.timestamp).toLocaleString('id-ID')}"`,
+      l.gate_mode || 'GATE_OUT',
       `"${l.plate_number}"`,
-      l.visit_number,
       l.status,
-      l.similarity_score !== null ? (l.similarity_score * 100).toFixed(1) : 'Baseline',
+      l.similarity_score !== null ? (l.similarity_score * 100).toFixed(1) : 'Sesi Masuk',
       l.status === 'ANOMALY' ? 'Terkunci (Ditahan)' : 'Terbuka',
       `"${(l.decision_notes || '').replace(/"/g, '""')}"`
     ]);
@@ -79,90 +79,108 @@ export const LogsTable: React.FC<LogsTableProps> = ({ logs, onViewEvidence }) =>
                   : 'text-slate-600 hover:text-red-700'
               }`}
             >
-              Anomali ({logs.filter(l => l.status === 'ANOMALY').length})
+              Anomali Saja ({logs.filter(l => l.status === 'ANOMALY').length})
             </button>
           </div>
         </div>
       </div>
 
-      <div className="overflow-x-auto mt-3">
-        <table className="w-full text-left text-xs border-collapse">
-          <thead className="bg-slate-100 text-slate-700 font-semibold border-b border-slate-200">
+      {/* Table Container */}
+      <div className="overflow-x-auto mt-4">
+        <table className="w-full text-left text-xs text-slate-700">
+          <thead className="bg-slate-50 text-[11px] font-semibold text-slate-500 uppercase border-b border-slate-200">
             <tr>
-              <th className="py-2.5 px-3">Waktu Transaksi</th>
-              <th className="py-2.5 px-3">Nomor Polisi</th>
-              <th className="py-2.5 px-3">Kunjungan</th>
-              <th className="py-2.5 px-3">Status Verifikasi</th>
-              <th className="py-2.5 px-3">Skor Kemiripan (ArcFace)</th>
-              <th className="py-2.5 px-3">Aksi Palang</th>
-              <th className="py-2.5 px-3 text-right">Foto Bukti</th>
+              <th className="px-3 py-2.5">ID</th>
+              <th className="px-3 py-2.5">Waktu</th>
+              <th className="px-3 py-2.5">Pos Gerbang</th>
+              <th className="px-3 py-2.5">Nomor Polisi</th>
+              <th className="px-3 py-2.5">Status</th>
+              <th className="px-3 py-2.5">Kemiripan ArcFace</th>
+              <th className="px-3 py-2.5">Foto Masuk</th>
+              <th className="px-3 py-2.5">Foto Keluar / Bukti</th>
+              <th className="px-3 py-2.5">Catatan Sistem</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-100 text-slate-700">
+          <tbody className="divide-y divide-slate-200">
             {filteredLogs.length === 0 ? (
               <tr>
-                <td colSpan={7} className="py-8 text-center text-slate-400 italic">
-                  Belum ada catatan transaksi parkir. Jalankan simulasi atau webcam di atas.
+                <td colSpan={9} className="px-4 py-8 text-center text-slate-400">
+                  Belum ada rekaman transaksi gerbang parkir.
                 </td>
               </tr>
             ) : (
               filteredLogs.map((log) => {
                 const isAnomaly = log.status === 'ANOMALY';
+                const isGateIn = log.gate_mode === 'GATE_IN';
+
                 return (
-                  <tr key={log.id} className="hover:bg-slate-50/80 transition">
-                    <td className="py-2.5 px-3 font-mono text-slate-600">
-                      {new Date(log.timestamp).toLocaleTimeString('id-ID')}
+                  <tr key={log.id} className={`hover:bg-slate-50/70 transition ${isAnomaly ? 'bg-red-50/30' : ''}`}>
+                    <td className="px-3 py-2.5 font-mono text-slate-400">#{log.id}</td>
+                    <td className="px-3 py-2.5 whitespace-nowrap text-slate-500 font-mono text-[11px]">
+                      {new Date(log.timestamp).toLocaleTimeString('id-ID')} WIB
                     </td>
-                    <td className="py-2.5 px-3 font-mono font-bold text-slate-900">
-                      {log.plate_number}
-                    </td>
-                    <td className="py-2.5 px-3 font-medium">
-                      Ke-{log.visit_number}
-                    </td>
-                    <td className="py-2.5 px-3">
-                      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold ${
-                        isAnomaly
-                          ? 'bg-red-100 text-red-800 border border-red-200'
-                          : 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                    <td className="px-3 py-2.5 whitespace-nowrap">
+                      <span className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded ${
+                        isGateIn
+                          ? 'bg-blue-50 text-blue-700 border border-blue-200'
+                          : 'bg-slate-100 text-slate-700 border border-slate-200'
                       }`}>
-                        {isAnomaly ? <AlertCircle className="w-3 h-3" /> : <CheckCircle className="w-3 h-3" />}
-                        {log.status}
+                        {isGateIn ? <LogIn className="w-3 h-3" /> : <LogOut className="w-3 h-3" />}
+                        {isGateIn ? 'GATE-IN' : 'GATE-OUT'}
                       </span>
                     </td>
-                    <td className="py-2.5 px-3 font-mono">
+                    <td className="px-3 py-2.5 font-mono font-bold text-slate-900">
+                      {log.plate_number}
+                    </td>
+                    <td className="px-3 py-2.5 whitespace-nowrap">
+                      <span className={`inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded ${
+                        isAnomaly
+                          ? 'bg-red-100 text-red-800 border border-red-200'
+                          : (isGateIn ? 'bg-blue-100 text-blue-800 border border-blue-200' : 'bg-emerald-100 text-emerald-800 border border-emerald-200')
+                      }`}>
+                        {isAnomaly ? <AlertCircle className="w-3 h-3" /> : <CheckCircle className="w-3 h-3" />}
+                        {isAnomaly ? 'ANOMALI' : 'NORMAL'}
+                      </span>
+                    </td>
+                    <td className="px-3 py-2.5 font-mono">
                       {log.similarity_score !== null ? (
                         <span className={`font-semibold ${isAnomaly ? 'text-red-700' : 'text-emerald-700'}`}>
                           {(log.similarity_score * 100).toFixed(1)}%
                         </span>
                       ) : (
-                        <span className="text-slate-400 italic">Registrasi Profil</span>
+                        <span className="text-slate-400 text-[11px]">Sesi Masuk</span>
                       )}
                     </td>
-                    <td className="py-2.5 px-3 font-medium">
-                      {isAnomaly ? (
-                        <span className="text-red-700 font-bold">Terkunci (Ditahan)</span>
+                    <td className="px-3 py-2.5">
+                      {log.entry_photo_path ? (
+                        <img
+                          src={log.entry_photo_path}
+                          alt="Foto Masuk"
+                          onClick={() => onViewEvidence(log.entry_photo_path!)}
+                          className="w-8 h-8 object-cover rounded border border-slate-200 cursor-pointer hover:opacity-80"
+                          title="Klik untuk melihat foto masuk"
+                        />
                       ) : (
-                        <span className="text-emerald-700">Terbuka</span>
+                        <span className="text-slate-300">-</span>
                       )}
                     </td>
-                    <td className="py-2.5 px-3 text-right">
-                      {log.anomaly_evidence_path ? (
-                        <button
-                          onClick={() => onViewEvidence(log.anomaly_evidence_path!)}
-                          className="px-2.5 py-1 rounded bg-red-50 text-red-700 hover:bg-red-100 border border-red-300 font-medium inline-flex items-center gap-1 transition"
-                        >
-                          <Eye className="w-3 h-3" /> Foto Bukti
-                        </button>
-                      ) : log.face_photo_path ? (
-                        <button
-                          onClick={() => onViewEvidence(log.face_photo_path!)}
-                          className="px-2.5 py-1 rounded bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-300 font-medium inline-flex items-center gap-1 transition"
-                        >
-                          <Eye className="w-3 h-3" /> Foto Wajah
-                        </button>
+                    <td className="px-3 py-2.5">
+                      {log.anomaly_evidence_path || log.face_photo_path ? (
+                        <img
+                          src={(log.anomaly_evidence_path || log.face_photo_path)!}
+                          alt="Foto Keluar"
+                          onClick={() => onViewEvidence((log.anomaly_evidence_path || log.face_photo_path)!)}
+                          className={`w-8 h-8 object-cover rounded border cursor-pointer hover:opacity-80 ${
+                            isAnomaly ? 'border-red-300 ring-1 ring-red-200' : 'border-slate-200'
+                          }`}
+                          title="Klik untuk melihat foto"
+                        />
                       ) : (
-                        <span className="text-slate-400">-</span>
+                        <span className="text-slate-300">-</span>
                       )}
+                    </td>
+                    <td className="px-3 py-2.5 text-slate-500 max-w-xs truncate" title={log.decision_notes}>
+                      {log.decision_notes}
                     </td>
                   </tr>
                 );

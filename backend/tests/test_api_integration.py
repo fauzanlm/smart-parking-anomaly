@@ -17,45 +17,87 @@ def test_health_check_endpoint():
     assert response.status_code == 200
     data = response.json()
     assert data["status"] == "online"
-    assert data["thresholds"]["min_visits"] == 3
 
-def test_process_parking_flow():
-    # Transaction 1
-    resp1 = client.post("/api/parking/process", json={
-        "plate_number": "B 1234 WLM",
-        "driver_person_id": "driver_owner",
-        "event_type": "EXIT"
+def test_gate_in_gate_out_api_flow():
+    test_plate = "B 1234 WLM"
+
+    # 1. GATE-IN: Mobil Masuk
+    resp_in = client.post("/api/parking/process", json={
+        "plate_number": test_plate,
+        "gate_mode": "GATE_IN",
+        "driver_person_id": "driver_owner"
     })
-    assert resp1.status_code == 200
-    assert resp1.json()["status"] == "NORMAL"
+    assert resp_in.status_code == 200
+    data_in = resp_in.json()
+    assert data_in["gate_mode"] == "GATE_IN"
+    assert data_in["status"] == "NORMAL"
+    assert data_in["gate_action"] == "OPEN"
 
-    # Transaction 2
-    client.post("/api/parking/process", json={"plate_number": "B 1234 WLM", "driver_person_id": "driver_owner"})
-    # Transaction 3
-    client.post("/api/parking/process", json={"plate_number": "B 1234 WLM", "driver_person_id": "driver_owner"})
-    
-    # Transaction 4 - Thief
+    # Check active sessions
+    resp_active = client.get("/api/parking/active-sessions")
+    assert resp_active.status_code == 200
+    assert len(resp_active.json()) >= 1
+    assert resp_active.json()[0]["plate_number"] == test_plate
+
+    # 2. GATE-OUT: Pengemudi Sama (Lolos Normal)
+    resp_out = client.post("/api/parking/process", json={
+        "plate_number": test_plate,
+        "gate_mode": "GATE_OUT",
+        "driver_person_id": "driver_owner"
+    })
+    assert resp_out.status_code == 200
+    data_out = resp_out.json()
+    assert data_out["gate_mode"] == "GATE_OUT"
+    assert data_out["status"] == "NORMAL"
+    assert data_out["gate_action"] == "OPEN"
+    assert data_out["similarity_percentage"] >= 65.0
+
+def test_gate_out_anomaly_intruder():
+    test_plate = "B 8888 SEC"
+
+    # 1. GATE-IN: Pemilik Masuk
+    client.post("/api/parking/process", json={
+        "plate_number": test_plate,
+        "gate_mode": "GATE_IN",
+        "driver_person_id": "driver_owner"
+    })
+
+    # 2. GATE-OUT: Orang Lain / Maling Membawa Mobil Keluar
     resp_thief = client.post("/api/parking/process", json={
-        "plate_number": "B 1234 WLM",
-        "driver_person_id": "driver_thief",
-        "event_type": "EXIT"
+        "plate_number": test_plate,
+        "gate_mode": "GATE_OUT",
+        "driver_person_id": "driver_thief"
     })
     assert resp_thief.status_code == 200
-    data = resp_thief.json()
+    data_thief = resp_thief.json()
+    assert data_thief["gate_mode"] == "GATE_OUT"
+    assert data_thief["status"] == "ANOMALY"
+    assert data_thief["gate_action"] == "LOCK"
+    assert data_thief["high_res_camera_triggered"] is True
+    assert data_thief["similarity_percentage"] < 65.0
+
+def test_gate_out_without_entry():
+    resp = client.post("/api/parking/process", json={
+        "plate_number": "B 9999 GHO",
+        "gate_mode": "GATE_OUT",
+        "driver_person_id": "driver_owner"
+    })
+    assert resp.status_code == 200
+    data = resp.json()
     assert data["status"] == "ANOMALY"
     assert data["gate_action"] == "LOCK"
-    assert data["high_res_camera_triggered"] is True
 
 def test_stats_and_logs_endpoints():
-    # Insert one transaction
-    client.post("/api/parking/process", json={"plate_number": "B 5555 BOS", "driver_person_id": "driver_owner"})
+    client.post("/api/parking/process", json={
+        "plate_number": "B 5555 BOS",
+        "gate_mode": "GATE_IN",
+        "driver_person_id": "driver_owner"
+    })
     
-    # Fetch logs
     resp_logs = client.get("/api/parking/logs")
     assert resp_logs.status_code == 200
     assert len(resp_logs.json()) >= 1
 
-    # Fetch stats
     resp_stats = client.get("/api/stats")
     assert resp_stats.status_code == 200
-    assert resp_stats.json()["total_transactions"] >= 1
+    assert resp_stats.json()["currently_parked"] >= 1

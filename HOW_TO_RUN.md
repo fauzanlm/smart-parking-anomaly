@@ -76,14 +76,15 @@ Jika browser tidak terbuka otomatis, buka Google Chrome / Microsoft Edge dan ket
 
 Saat sidang skripsi / presentasi, di halaman dashboard [http://localhost:3000](http://localhost:3000), kamu tinggal klik tombol-tombol yang ada di bagian **"Panel Pengujian & Skenario Simulasi Sidang"**:
 
-1. Klik tombol **`1. Kunjungan #1`** $\rightarrow$ Status NORMAL (Registrasi baseline wajah awal).
-2. Klik tombol **`2. Kunjungan #2`** $\rightarrow$ Status NORMAL (Registrasi baseline ke-2).
-3. Klik tombol **`3. Kunjungan #3`** $\rightarrow$ Status NORMAL (Syarat batas minimal 3x kunjungan terpenuhi!).
-4. Klik tombol **`4. Uji Pemilik Sah`** $\rightarrow$ Status NORMAL, palang parkir terbuka hijau (*Auto-Pass*).
-5. Klik tombol **`5. Uji Kasus Curanmor!`** $\rightarrow$ 🚨 **ALARM ANOMALI BUNYI!**  
-   * Palang otomatis terkunci merah (*Security Lock*).
-   * Kamera resolusi tinggi terpicu (*Hi-Res Triggered*).
-   * Muncul tombol **"Lihat Foto Bukti Anomali"** untuk melihat bukti forensik wajah pelaku.
+1. Klik tombol **`1. [GATE-IN] Mobil Masuk Area Parkir`** $\rightarrow$ Mobil masuk, wajah & plat direkam ke database sesi aktif, palang masuk terbuka.
+2. Klik tombol **`2. [GATE-OUT] Keluar — Pengemudi Sah`** $\rightarrow$ Wajah keluar cocok dengan saat masuk (96%), status NORMAL, palang keluar otomatis terbuka (*Auto-Pass*).
+3. Klik tombol **`3. [GATE-IN] Mobil Kedua Masuk`** $\rightarrow$ Mobil kedua masuk, wajah pengemudi tercatat di database.
+4. Klik tombol **`4. [GATE-OUT] Keluar — Dibawa Maling!`** $\rightarrow$ 🚨 **ALARM ANOMALI BUNYI!**  
+   * Wajah berbeda jauh dengan saat masuk (kemiripan 0.8% < ambang 65%).
+   * Palang keluar otomatis terkunci merah (*Security Lock*).
+   * Kamera resolusi tinggi merekam wajah pelaku (*Hi-Res Triggered*).
+   * Muncul tombol **"Buka Berkas Bukti Forensik Resolusi Tinggi"** untuk melihat bukti forensik wajah pelaku.
+5. Klik tombol **`5. [GATE-OUT] Keluar — Tanpa Tiket Masuk`** $\rightarrow$ Kendaraan tidak terdata masuk $\rightarrow$ ANOMALI, palang terkunci.
 
 ---
 
