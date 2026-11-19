@@ -1,5 +1,9 @@
 import React, { useRef, useState, useEffect } from 'react';
-import { Camera, Video, VideoOff, Aperture, Upload, LogIn, LogOut, ArrowRightLeft, ShieldAlert, Sparkles, CheckCircle, RefreshCw } from 'lucide-react';
+import axios from 'axios';
+import { 
+  Camera, Video, VideoOff, Aperture, Upload, LogIn, LogOut, 
+  ArrowRightLeft, Zap, ZapOff, RefreshCw, CheckCircle2, ShieldAlert, Timer
+} from 'lucide-react';
 import { VerificationResult } from '../types';
 
 interface TripleCameraViewProps {
@@ -48,6 +52,12 @@ export const TripleCameraView: React.FC<TripleCameraViewProps> = ({
   const [isCamerasActive, setIsCamerasActive] = useState<boolean>(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
 
+  // Auto-Capture System State
+  const [isAutoCapture, setIsAutoCapture] = useState<boolean>(true);
+  const [countdown, setCountdown] = useState<number | null>(null);
+  const [cooldown, setCooldown] = useState<number>(0);
+  const [autoStatusMessage, setAutoStatusMessage] = useState<string>('Sensor Siaga: Menunggu kertas plat di Kamera 1...');
+
   // Video element refs
   const video1Ref = useRef<HTMLVideoElement | null>(null);
   const video2Ref = useRef<HTMLVideoElement | null>(null);
@@ -59,6 +69,26 @@ export const TripleCameraView: React.FC<TripleCameraViewProps> = ({
   const stream3Ref = useRef<MediaStream | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const isDetectingRef = useRef<boolean>(false);
+
+  // Beep sound generator for countdown & detection
+  const playBeep = (freq = 880, duration = 0.1) => {
+    try {
+      const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+      gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
+      osc.start();
+      osc.stop(audioCtx.currentTime + duration);
+    } catch {
+      // AudioContext unavailable or blocked by browser policy
+    }
+  };
 
   // 1. Enumerate connected video inputs
   const enumerateCameras = async () => {
@@ -118,7 +148,6 @@ export const TripleCameraView: React.FC<TripleCameraViewProps> = ({
   const startAllCameras = async () => {
     setCameraError(null);
     try {
-      // First ask permission to get real device labels if empty
       const initialStream = await navigator.mediaDevices.getUserMedia({ video: true });
       initialStream.getTracks().forEach((t) => t.stop());
       await enumerateCameras();
@@ -147,9 +176,10 @@ export const TripleCameraView: React.FC<TripleCameraViewProps> = ({
       }
 
       setIsCamerasActive(true);
+      setAutoStatusMessage('Kamera aktif. Arahkan kertas plat ke Kamera 1 untuk auto-capture...');
     } catch (err: any) {
       console.error('Error starting cameras:', err);
-      setCameraError('Akses kamera tidak diizinkan atau port USB webcam sedang terpakai aplikasi lain.');
+      setCameraError('Akses kamera tidak diizinkan atau webcam sedang terpakai aplikasi lain.');
       setIsCamerasActive(false);
     }
   };
@@ -168,6 +198,7 @@ export const TripleCameraView: React.FC<TripleCameraViewProps> = ({
       }
     });
     setIsCamerasActive(false);
+    setCountdown(null);
   };
 
   useEffect(() => {
@@ -189,7 +220,7 @@ export const TripleCameraView: React.FC<TripleCameraViewProps> = ({
   };
 
   // Unified Simultaneous Capture: Cam 1 (Plate) + Cam 2 (Face) + Cam 3 (Standby/Hi-Res)
-  const handleSimultaneousCapture = () => {
+  const handleSimultaneousCapture = async () => {
     if (!isCamerasActive) return;
 
     const plateB64 = captureFrameFromVideo(video1Ref.current, 0.90);
@@ -201,7 +232,14 @@ export const TripleCameraView: React.FC<TripleCameraViewProps> = ({
       return;
     }
 
-    onCaptureLive(faceB64, plateB64 || undefined, cam3B64 || undefined);
+    playBeep(1200, 0.15); // Shutter sound
+    await onCaptureLive(faceB64, plateB64 || undefined, cam3B64 || undefined);
+
+    // Start cooldown after successful capture
+    if (isAutoCapture) {
+      setCooldown(6);
+      setAutoStatusMessage('Transaksi selesai. Siaga untuk kendaraan berikutnya...');
+    }
   };
 
   // Single OCR scan from Cam 1
@@ -226,9 +264,83 @@ export const TripleCameraView: React.FC<TripleCameraViewProps> = ({
     e.target.value = '';
   };
 
+  // =========================================================================
+  // AUTO-CAPTURE ENGINE (Sensor Kendaraan Otomatis via Background OCR)
+  // =========================================================================
+  
+  // Cooldown countdown effect
+  useEffect(() => {
+    if (cooldown <= 0) return;
+    const timer = setInterval(() => {
+      setCooldown((prev) => {
+        if (prev <= 1) {
+          setAutoStatusMessage('Sensor Siaga: Menunggu kertas plat di Kamera 1...');
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [cooldown]);
+
+  // Visual Countdown 3-2-1 effect
+  useEffect(() => {
+    if (countdown === null) return;
+    if (countdown > 0) {
+      playBeep(750 + (3 - countdown) * 150, 0.1);
+      const timer = setTimeout(() => {
+        setCountdown(countdown - 1);
+      }, 1000);
+      return () => clearTimeout(timer);
+    } else if (countdown === 0) {
+      setCountdown(null);
+      handleSimultaneousCapture();
+    }
+  }, [countdown]);
+
+  // Background Auto-Scan Loop
+  useEffect(() => {
+    if (!isCamerasActive || !isAutoCapture || isProcessing || countdown !== null || cooldown > 0) {
+      return;
+    }
+
+    const interval = setInterval(async () => {
+      if (isDetectingRef.current || isProcessing || countdown !== null || cooldown > 0) return;
+
+      const plateB64 = captureFrameFromVideo(video1Ref.current, 0.85);
+      if (!plateB64) return;
+
+      isDetectingRef.current = true;
+      try {
+        const res = await axios.post<{
+          success: boolean;
+          plate_number?: string;
+          message?: string;
+        }>('/api/parking/ocr-plate', {
+          image_base64: plateB64
+        });
+
+        if (res.data.success && res.data.plate_number) {
+          const detected = res.data.plate_number;
+          onPlateChange(detected);
+          setAutoStatusMessage(`✓ Plat Terdeteksi: ${detected}! Mengambil foto...`);
+          playBeep(980, 0.18);
+          // Trigger countdown 3 seconds so user can prepare face in Cam 2
+          setCountdown(3);
+        }
+      } catch {
+        // Silent fail on periodic scan
+      } finally {
+        isDetectingRef.current = false;
+      }
+    }, 2200);
+
+    return () => clearInterval(interval);
+  }, [isCamerasActive, isAutoCapture, isProcessing, countdown, cooldown, plateNumber]);
+
   return (
     <div className="space-y-3">
-      {/* Top Controller Bar: Mode Toggle & Master Camera Switch */}
+      {/* Top Controller Bar: Gate Selector, Auto-Capture Toggle & Master Camera Switch */}
       <div className="bg-white border border-slate-200 rounded-lg p-3 shadow-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-3">
         {/* Gate Mode Selector */}
         <div className="flex items-center gap-2 w-full md:w-auto">
@@ -264,6 +376,25 @@ export const TripleCameraView: React.FC<TripleCameraViewProps> = ({
           </div>
         </div>
 
+        {/* Center: Auto-Capture Toggle Switch */}
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => {
+              setIsAutoCapture(!isAutoCapture);
+              setCountdown(null);
+            }}
+            className={`px-3 py-1.5 rounded-md text-xs font-bold flex items-center gap-1.5 transition border ${
+              isAutoCapture
+                ? 'bg-emerald-50 text-emerald-800 border-emerald-300 shadow-2xs'
+                : 'bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100'
+            }`}
+            title="Aktifkan atau nonaktifkan pendeteksi kertas plat otomatis"
+          >
+            {isAutoCapture ? <Zap className="w-3.5 h-3.5 text-emerald-600 fill-emerald-500" /> : <ZapOff className="w-3.5 h-3.5" />}
+            <span>Auto-Capture: {isAutoCapture ? 'AKTIF (Sensor Otomatis)' : 'NONAKTIF (Manual Saja)'}</span>
+          </button>
+        </div>
+
         {/* Master Camera Activation Button & Hardware Count */}
         <div className="flex items-center gap-2 w-full md:w-auto justify-between md:justify-end">
           <div className="flex items-center gap-1.5 text-[11px] text-slate-500 font-medium">
@@ -295,6 +426,48 @@ export const TripleCameraView: React.FC<TripleCameraViewProps> = ({
       {cameraError && (
         <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-xs font-medium text-red-700">
           ⚠️ {cameraError}
+        </div>
+      )}
+
+      {/* Auto-Capture Status Banner */}
+      {isCamerasActive && isAutoCapture && (
+        <div className={`p-2.5 rounded-lg border text-xs flex items-center justify-between transition ${
+          countdown !== null
+            ? 'bg-amber-500 text-slate-950 border-amber-600 font-bold animate-pulse'
+            : cooldown > 0
+            ? 'bg-blue-50 text-blue-800 border-blue-200'
+            : 'bg-emerald-50 text-emerald-800 border-emerald-200'
+        }`}>
+          <div className="flex items-center gap-2">
+            {countdown !== null ? (
+              <Timer className="w-4 h-4 animate-spin" />
+            ) : cooldown > 0 ? (
+              <CheckCircle2 className="w-4 h-4 text-blue-600" />
+            ) : (
+              <Zap className="w-4 h-4 text-emerald-600" />
+            )}
+            <span>{autoStatusMessage}</span>
+          </div>
+
+          {countdown !== null && (
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-black tracking-widest bg-slate-950 text-amber-300 px-2.5 py-0.5 rounded">
+                JEPRET DALAM: {countdown}s
+              </span>
+              <button
+                onClick={() => setCountdown(null)}
+                className="px-2 py-0.5 rounded bg-slate-900 text-white text-[10px] font-medium hover:bg-slate-800"
+              >
+                Batalkan
+              </button>
+            </div>
+          )}
+
+          {cooldown > 0 && (
+            <span className="text-[11px] font-mono text-blue-700 font-bold">
+              Jeda Kendaraan: {cooldown}s
+            </span>
+          )}
         </div>
       )}
 
@@ -347,23 +520,38 @@ export const TripleCameraView: React.FC<TripleCameraViewProps> = ({
               className={`w-full h-full object-cover ${isCamerasActive ? 'block' : 'hidden'}`}
             />
 
+            {/* Reticle / Target Scanner Box for Paper Plate */}
+            {isCamerasActive && (
+              <div className="absolute inset-x-8 inset-y-6 border-2 border-dashed border-amber-400/80 rounded-md pointer-events-none flex flex-col items-center justify-between p-1.5 z-10">
+                <span className="bg-amber-500/90 text-slate-950 font-bold text-[9px] px-2 py-0.5 rounded shadow-xs">
+                  📄 TEMPATKAN KERTAS PLAT NOMOR DI SINI
+                </span>
+                {isAutoCapture && cooldown === 0 && (
+                  <div className="w-full h-0.5 bg-emerald-400 shadow-[0_0_8px_#34d399] animate-pulse" />
+                )}
+                <span className="text-[9px] text-amber-300 font-mono bg-black/60 px-1.5 py-0.5 rounded">
+                  ANPR OCR ACTIVE
+                </span>
+              </div>
+            )}
+
             {!isCamerasActive && (
               <div className="text-center p-3">
-                <div className="bg-white border border-slate-800 rounded px-4 py-1.5 shadow-2xs inline-block">
+                <div className="bg-white border border-slate-300 rounded px-4 py-2 shadow-2xs inline-block">
                   <span className="block text-[8px] text-slate-400 font-mono font-bold tracking-wider">
-                    KORLANTAS POLRI
+                    TARGET PLAT KENDARAAN
                   </span>
-                  <span className="font-mono text-lg font-black tracking-widest text-slate-900">
-                    {plateNumber || 'B 1234 WLM'}
+                  <span className="font-mono text-base font-black tracking-widest text-slate-800">
+                    {plateNumber || '— SIAPKAN KERTAS PLAT —'}
                   </span>
                 </div>
                 <p className="text-[11px] text-slate-500 mt-2 font-medium">
-                  Kamera pengenal plat nomor otomatis (ANPR)
+                  Tunjukkan kertas bertuliskan plat ke Kamera 1
                 </p>
               </div>
             )}
 
-            {/* OCR scanning overlay button */}
+            {/* OCR scanning button */}
             {isCamerasActive && (
               <div className="absolute bottom-2 inset-x-0 z-20 flex justify-center">
                 <button
@@ -373,7 +561,7 @@ export const TripleCameraView: React.FC<TripleCameraViewProps> = ({
                   title="Baca tulisan plat nomor di depan kamera 1"
                 >
                   <Aperture className={`w-3 h-3 ${isScanningPlate ? 'animate-spin' : ''}`} />
-                  {isScanningPlate ? 'Membaca...' : 'Scan Plat dari Cam 1'}
+                  {isScanningPlate ? 'Membaca Plat...' : '🔍 Pindai Plat Kertas (Cam 1)'}
                 </button>
               </div>
             )}
@@ -393,8 +581,8 @@ export const TripleCameraView: React.FC<TripleCameraViewProps> = ({
                 type="text"
                 value={plateNumber}
                 onChange={(e) => onPlateChange(e.target.value.toUpperCase())}
-                placeholder="B 1234 WLM"
-                className="px-2 py-0.5 border border-slate-300 rounded font-mono font-bold text-xs text-slate-900 w-28 focus:outline-none focus:ring-1 focus:ring-blue-600"
+                placeholder="Arahkan kertas plat / ketik"
+                className="px-2 py-0.5 border border-slate-300 rounded font-mono font-bold text-xs text-slate-900 w-full focus:outline-none focus:ring-1 focus:ring-blue-600"
               />
             </div>
 
@@ -450,7 +638,7 @@ export const TripleCameraView: React.FC<TripleCameraViewProps> = ({
           {/* Viewport Frame */}
           <div className="h-56 bg-slate-100 border-b border-slate-200 flex flex-col items-center justify-center relative overflow-hidden">
             <div className="absolute top-2 left-2.5 font-mono text-[10px] text-slate-700 font-bold bg-white/80 px-2 py-0.5 rounded shadow-2xs z-20">
-              CAM 02 ● {isCamerasActive ? 'LIVE BIOMETRIC' : 'STANDBY'}
+              CAM 02 ● {isCamerasActive ? 'LIVE STREAM' : 'STANDBY'}
             </div>
 
             <video
@@ -461,45 +649,51 @@ export const TripleCameraView: React.FC<TripleCameraViewProps> = ({
               className={`w-full h-full object-cover ${isCamerasActive ? 'block' : 'hidden'}`}
             />
 
-            {!isCamerasActive && (
-              <div className="text-center p-3 text-slate-500">
-                <Video className="w-8 h-8 text-slate-400 mx-auto mb-1.5" />
-                <p className="text-xs font-bold text-slate-700">Kamera Wajah Standby</p>
-                <p className="text-[11px] text-slate-400 mt-0.5">Mengekstrak ciri biometrik ArcFace</p>
+            {/* Face Oval Reticle Overlay */}
+            {isCamerasActive && (
+              <div className="absolute inset-x-14 inset-y-6 border-2 border-dashed border-blue-400/80 rounded-full pointer-events-none flex flex-col items-center justify-between p-2 z-10">
+                <span className="bg-blue-600/90 text-white font-bold text-[9px] px-2 py-0.5 rounded shadow-xs">
+                  👤 POSISIKAN WAJAH PENGENDARA
+                </span>
+                <span className="text-[8px] text-blue-200 font-mono bg-black/60 px-1.5 py-0.5 rounded">
+                  ARCFACE 128-D EMBEDDING
+                </span>
               </div>
             )}
 
-            {isCamerasActive && (
-              <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
-                <div className="w-28 h-36 border-2 border-emerald-500 border-dashed rounded-lg bg-emerald-500/5" />
+            {!isCamerasActive && (
+              <div className="text-center p-4">
+                <div className="w-12 h-12 rounded-full bg-slate-200 border-2 border-slate-300 mx-auto flex items-center justify-center text-slate-500 mb-2">
+                  <Camera className="w-6 h-6" />
+                </div>
+                <p className="text-xs font-bold text-slate-700">Sensor Biometrik Wajah</p>
+                <p className="text-[11px] text-slate-400 mt-0.5">
+                  Ekstraksi fitur wajah ArcFace & pencocokan Cosine Similarity
+                </p>
               </div>
             )}
           </div>
 
           {/* Footer Controls */}
-          <div className="p-2.5 bg-white text-xs flex items-center justify-between text-slate-600 font-medium border-t border-slate-100">
-            <span className="text-[11px]">Vektor: YuNet + SFace (128-d)</span>
-            <span className="text-[11px] font-bold text-emerald-700">Live Stream Aktif</span>
+          <div className="p-2.5 bg-white text-xs flex items-center justify-between font-medium text-slate-600 border-t border-slate-100">
+            <span>Model: SCRFD + ArcFace</span>
+            <span className="font-mono text-emerald-700 font-bold">Vektor 128-d</span>
           </div>
         </div>
 
         {/* ============================================================ */}
-        {/* KAMERA 3: Bukti Resolusi Tinggi (Standby / Anomaly Trigger)  */}
+        {/* KAMERA 3: Resolusi Tinggi Bukti Anomali (Standby/Trigger)    */}
         {/* ============================================================ */}
-        <div className={`bg-white border rounded-lg overflow-hidden shadow-xs flex flex-col justify-between transition ${
-          isCam3Triggered ? 'border-red-400 ring-2 ring-red-200' : 'border-slate-200'
-        }`}>
+        <div className="bg-white border border-slate-200 rounded-lg overflow-hidden shadow-xs flex flex-col justify-between">
           {/* Top Bar */}
-          <div className={`px-3 py-2 border-b flex items-center justify-between text-xs ${
-            isCam3Triggered ? 'bg-red-50 border-red-200 text-red-900 font-bold' : 'bg-slate-50 border-slate-200 text-slate-800'
+          <div className={`px-3 py-2 border-b flex items-center justify-between text-xs transition ${
+            isCam3Triggered ? 'bg-red-50 border-red-200 text-red-800' : 'bg-slate-50 border-slate-200 text-slate-800'
           }`}>
             <div className="flex items-center gap-1.5 font-bold">
-              {isCam3Triggered ? (
-                <ShieldAlert className="w-4 h-4 text-red-600 animate-bounce" />
-              ) : (
-                <Sparkles className="w-4 h-4 text-amber-600" />
-              )}
-              <span>KAMERA 3: HI-RES BUKTI</span>
+              <span className={`w-2 h-2 rounded-full ${
+                isCam3Triggered ? 'bg-red-600 animate-ping' : isCamerasActive ? 'bg-amber-500' : 'bg-slate-400'
+              }`} />
+              <span>KAMERA 3: BUKTI HI-RES</span>
             </div>
 
             {videoDevices.length > 0 && (
@@ -526,9 +720,9 @@ export const TripleCameraView: React.FC<TripleCameraViewProps> = ({
           {/* Viewport Frame */}
           <div className="h-56 bg-slate-100 border-b border-slate-200 flex flex-col items-center justify-center relative overflow-hidden">
             <div className={`absolute top-2 left-2.5 font-mono text-[10px] font-bold px-2 py-0.5 rounded shadow-2xs z-20 ${
-              isCam3Triggered ? 'bg-red-600 text-white animate-pulse' : 'bg-white/80 text-slate-700'
+              isCam3Triggered ? 'bg-red-600 text-white' : 'bg-white/80 text-slate-700'
             }`}>
-              CAM 03 ● {isCam3Triggered ? '🚨 TRIGGERED (ANOMALI)' : 'STANDBY (SIAGA)'}
+              CAM 03 ● {isCam3Triggered ? 'TRIGGERED (BUKTI DIREKAM)' : 'STANDBY (SIAGA)'}
             </div>
 
             <video
@@ -540,11 +734,13 @@ export const TripleCameraView: React.FC<TripleCameraViewProps> = ({
             />
 
             {!isCamerasActive && (
-              <div className="text-center p-3 text-slate-500">
-                <ShieldAlert className="w-8 h-8 text-amber-500 mx-auto mb-1.5" />
-                <p className="text-xs font-bold text-slate-700">Kamera Siaga (Standby)</p>
+              <div className="text-center p-4">
+                <div className="w-12 h-12 rounded-full bg-slate-200 border-2 border-slate-300 mx-auto flex items-center justify-center text-slate-500 mb-2">
+                  <ShieldAlert className="w-6 h-6" />
+                </div>
+                <p className="text-xs font-bold text-slate-700">Kamera Bukti Forensik</p>
                 <p className="text-[11px] text-slate-400 mt-0.5">
-                  Otomatis menjepret saat status ANOMALI
+                  Standby pada kondisi normal, otomatis memotret saat anomali
                 </p>
               </div>
             )}
@@ -552,12 +748,12 @@ export const TripleCameraView: React.FC<TripleCameraViewProps> = ({
             {/* Standby Watermark Banner */}
             {isCamerasActive && !isCam3Triggered && (
               <div className="absolute bottom-2 inset-x-2 z-10 bg-slate-900/60 backdrop-blur-xs text-white text-[10px] px-2 py-1 rounded text-center">
-                Standby: Menunggu status pencocokan gerbang
+                Standby: Kamera resolusi tinggi siap merekam bukti jika anomali
               </div>
             )}
 
             {isCamerasActive && isCam3Triggered && (
-              <div className="absolute inset-0 border-4 border-red-600 pointer-events-none animate-pulse flex items-center justify-center">
+              <div className="absolute inset-0 border-4 border-red-600 pointer-events-none animate-pulse flex items-center justify-center z-20">
                 <div className="bg-red-600 text-white font-bold text-xs px-3 py-1 rounded shadow-md">
                   TRIGGERED! BUKTI FORENSIK DIREKAM
                 </div>
@@ -587,8 +783,8 @@ export const TripleCameraView: React.FC<TripleCameraViewProps> = ({
           </p>
           <p className="text-[11px] text-slate-500">
             {isGateIn
-              ? 'Kamera 1 merekam plat nomor & Kamera 2 merekam wajah masuk secara simultan.'
-              : 'Kamera 1 & 2 mengambil gambar. Jika wajah tidak cocok, Kamera 3 otomatis melakukan trigger!'}
+              ? 'Tunjukkan kertas plat ke Kamera 1. Sistem otomatis membaca plat, lalu memotret Kamera 1 & 2 secara simultan.'
+              : 'Kamera 1 & 2 memverifikasi pengemudi. Jika wajah berbeda, Kamera 3 otomatis melakukan trigger!'}
           </p>
         </div>
 
@@ -606,8 +802,8 @@ export const TripleCameraView: React.FC<TripleCameraViewProps> = ({
             {isProcessing
               ? 'Memproses Inferensi...'
               : isGateIn
-              ? '📸 Tangkap Citra Masuk (Kamera 1 & 2) — GATE-IN'
-              : '🔍 Pindai & Verifikasi Keluar (Kamera 1 & 2) — GATE-OUT'}
+              ? '📸 Jepret Sekarang (Kamera 1 & 2) — GATE-IN'
+              : '🔍 Jepret & Verifikasi (Kamera 1 & 2) — GATE-OUT'}
           </span>
         </button>
       </div>
