@@ -2,7 +2,7 @@ import React, { useRef, useState, useEffect } from 'react';
 import axios from 'axios';
 import { 
   Camera, Video, VideoOff, Aperture, Upload, LogIn, LogOut, 
-  ArrowRightLeft, Zap, ZapOff, RefreshCw, CheckCircle2, ShieldAlert, Timer
+  ArrowRightLeft, Zap, ZapOff, RefreshCw, CheckCircle2, ShieldAlert, Timer, Activity
 } from 'lucide-react';
 import { VerificationResult } from '../types';
 
@@ -52,11 +52,14 @@ export const TripleCameraView: React.FC<TripleCameraViewProps> = ({
   const [isCamerasActive, setIsCamerasActive] = useState<boolean>(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
 
-  // Auto-Capture System State
+  // Auto-Capture & Motion Detection System State
   const [isAutoCapture, setIsAutoCapture] = useState<boolean>(true);
   const [countdown, setCountdown] = useState<number | null>(null);
   const [cooldown, setCooldown] = useState<number>(0);
-  const [autoStatusMessage, setAutoStatusMessage] = useState<string>('Sensor Siaga: Menunggu kertas plat di Kamera 1...');
+  const [motionLevel, setMotionLevel] = useState<number>(0);
+  const [autoStatusMessage, setAutoStatusMessage] = useState<string>(
+    'Sensor Siaga: Menunggu pergerakan kendaraan / orang di depan kamera...'
+  );
 
   // Video element refs
   const video1Ref = useRef<HTMLVideoElement | null>(null);
@@ -69,9 +72,11 @@ export const TripleCameraView: React.FC<TripleCameraViewProps> = ({
   const stream3Ref = useRef<MediaStream | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
-  const isDetectingRef = useRef<boolean>(false);
+  const isOcrScanningRef = useRef<boolean>(false);
+  const lastSampleRef = useRef<Uint8Array | null>(null);
+  const consecutiveMotionRef = useRef<number>(0);
 
-  // Beep sound generator for countdown & detection
+  // Audio chimes
   const playBeep = (freq = 880, duration = 0.1) => {
     try {
       const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
@@ -86,8 +91,30 @@ export const TripleCameraView: React.FC<TripleCameraViewProps> = ({
       osc.start();
       osc.stop(audioCtx.currentTime + duration);
     } catch {
-      // AudioContext unavailable or blocked by browser policy
+      // Blocked or audio unavailable
     }
+  };
+
+  const playChime = () => {
+    try {
+      const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const osc1 = audioCtx.createOscillator();
+      const osc2 = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc1.connect(gain);
+      osc2.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc1.type = 'sine';
+      osc2.type = 'triangle';
+      osc1.frequency.setValueAtTime(587.33, audioCtx.currentTime); // D5
+      osc2.frequency.setValueAtTime(880.00, audioCtx.currentTime + 0.12); // A5
+      gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.35);
+      osc1.start();
+      osc2.start(audioCtx.currentTime + 0.1);
+      osc1.stop(audioCtx.currentTime + 0.35);
+      osc2.stop(audioCtx.currentTime + 0.35);
+    } catch {}
   };
 
   // 1. Enumerate connected video inputs
@@ -176,7 +203,7 @@ export const TripleCameraView: React.FC<TripleCameraViewProps> = ({
       }
 
       setIsCamerasActive(true);
-      setAutoStatusMessage('Kamera aktif. Arahkan kertas plat ke Kamera 1 untuk auto-capture...');
+      setAutoStatusMessage('Kamera aktif. Menunggu pergerakan objek / kertas plat...');
     } catch (err: any) {
       console.error('Error starting cameras:', err);
       setCameraError('Akses kamera tidak diizinkan atau webcam sedang terpakai aplikasi lain.');
@@ -199,6 +226,8 @@ export const TripleCameraView: React.FC<TripleCameraViewProps> = ({
     });
     setIsCamerasActive(false);
     setCountdown(null);
+    setMotionLevel(0);
+    lastSampleRef.current = null;
   };
 
   useEffect(() => {
@@ -207,7 +236,7 @@ export const TripleCameraView: React.FC<TripleCameraViewProps> = ({
     };
   }, []);
 
-  // Capture frame helper
+  // Frame capture helper
   const captureFrameFromVideo = (videoElement: HTMLVideoElement | null, quality = 0.88): string | null => {
     if (!videoElement || videoElement.readyState < 2) return null;
     const canvas = document.createElement('canvas');
@@ -219,7 +248,7 @@ export const TripleCameraView: React.FC<TripleCameraViewProps> = ({
     return canvas.toDataURL('image/jpeg', quality);
   };
 
-  // Unified Simultaneous Capture: Cam 1 (Plate) + Cam 2 (Face) + Cam 3 (Standby/Hi-Res)
+  // Simultaneous Capture Trigger
   const handleSimultaneousCapture = async () => {
     if (!isCamerasActive) return;
 
@@ -235,10 +264,12 @@ export const TripleCameraView: React.FC<TripleCameraViewProps> = ({
     playBeep(1200, 0.15); // Shutter sound
     await onCaptureLive(faceB64, plateB64 || undefined, cam3B64 || undefined);
 
-    // Start cooldown after successful capture
+    // Cooldown 8 seconds to prevent immediate re-trigger on the same movement
     if (isAutoCapture) {
-      setCooldown(6);
-      setAutoStatusMessage('Transaksi selesai. Siaga untuk kendaraan berikutnya...');
+      setCooldown(8);
+      setAutoStatusMessage('✓ Transaksi selesai. Sensor cooldown (siaga untuk kendaraan berikutnya)...');
+      lastSampleRef.current = null;
+      consecutiveMotionRef.current = 0;
     }
   };
 
@@ -265,16 +296,86 @@ export const TripleCameraView: React.FC<TripleCameraViewProps> = ({
   };
 
   // =========================================================================
-  // AUTO-CAPTURE ENGINE (Sensor Kendaraan Otomatis via Background OCR)
+  // MOTION DETECTION ENGINE (Frame Differencing Sensor on Video 1 & 2)
   // =========================================================================
-  
-  // Cooldown countdown effect
+  const calculateMotion = (): number => {
+    // Check motion primarily on Kamera 2 (Face) or Kamera 1 (Plate)
+    const activeVideo = video2Ref.current || video1Ref.current;
+    if (!activeVideo || activeVideo.readyState < 2) return 0;
+
+    const w = 64;
+    const h = 48;
+    const canvas = document.createElement('canvas');
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    if (!ctx) return 0;
+
+    ctx.drawImage(activeVideo, 0, 0, w, h);
+    const imgData = ctx.getImageData(0, 0, w, h);
+    const data = imgData.data;
+
+    const currentSample = new Uint8Array(w * h);
+    for (let i = 0, j = 0; i < data.length; i += 4, j++) {
+      currentSample[j] = Math.round((data[i] + data[i + 1] + data[i + 2]) / 3);
+    }
+
+    if (!lastSampleRef.current || lastSampleRef.current.length !== currentSample.length) {
+      lastSampleRef.current = currentSample;
+      return 0;
+    }
+
+    let diffPixels = 0;
+    const intensityThreshold = 32;
+    for (let i = 0; i < currentSample.length; i++) {
+      if (Math.abs(currentSample[i] - lastSampleRef.current[i]) > intensityThreshold) {
+        diffPixels++;
+      }
+    }
+
+    lastSampleRef.current = currentSample;
+    const score = Math.round((diffPixels / (w * h)) * 100);
+    return score;
+  };
+
+  // Motion Detection Polling Interval (runs 4 times/sec)
+  useEffect(() => {
+    if (!isCamerasActive || !isAutoCapture || isProcessing || countdown !== null || cooldown > 0) {
+      return;
+    }
+
+    const interval = setInterval(() => {
+      if (countdown !== null || cooldown > 0 || isProcessing) return;
+
+      const currentScore = calculateMotion();
+      setMotionLevel(currentScore);
+
+      // Threshold: if > 12% pixel difference occurs (someone enters or moves in front of camera)
+      if (currentScore >= 12) {
+        consecutiveMotionRef.current += 1;
+        // Require 2 consecutive frames of motion to prevent noise glitch
+        if (consecutiveMotionRef.current >= 2) {
+          consecutiveMotionRef.current = 0;
+          playChime();
+          setAutoStatusMessage('🚗 Pergerakan Kendaraan / Orang Terdeteksi! Menjalankan verifikasi dalam 5 detik...');
+          // Start 5-second countdown as requested!
+          setCountdown(5);
+        }
+      } else {
+        consecutiveMotionRef.current = Math.max(0, consecutiveMotionRef.current - 1);
+      }
+    }, 280);
+
+    return () => clearInterval(interval);
+  }, [isCamerasActive, isAutoCapture, isProcessing, countdown, cooldown]);
+
+  // Cooldown timer (counts down 8..0)
   useEffect(() => {
     if (cooldown <= 0) return;
     const timer = setInterval(() => {
       setCooldown((prev) => {
         if (prev <= 1) {
-          setAutoStatusMessage('Sensor Siaga: Menunggu kertas plat di Kamera 1...');
+          setAutoStatusMessage('Sensor Siaga: Menunggu pergerakan kendaraan / orang di depan kamera...');
           return 0;
         }
         return prev - 1;
@@ -283,11 +384,30 @@ export const TripleCameraView: React.FC<TripleCameraViewProps> = ({
     return () => clearInterval(timer);
   }, [cooldown]);
 
-  // Visual Countdown 3-2-1 effect
+  // 5-Second Countdown Effect
   useEffect(() => {
     if (countdown === null) return;
+
     if (countdown > 0) {
-      playBeep(750 + (3 - countdown) * 150, 0.1);
+      playBeep(650 + (5 - countdown) * 90, 0.12);
+
+      // While counting down (at 4s and 2s), attempt an OCR scan on Kamera 1 if plateNumber is still empty!
+      if (!plateNumber && (countdown === 4 || countdown === 2) && !isOcrScanningRef.current) {
+        const plateB64 = captureFrameFromVideo(video1Ref.current, 0.88);
+        if (plateB64) {
+          isOcrScanningRef.current = true;
+          axios.post<{ success: boolean; plate_number?: string }>('/api/parking/ocr-plate', {
+            image_base64: plateB64
+          }).then((res) => {
+            if (res.data.success && res.data.plate_number) {
+              onPlateChange(res.data.plate_number);
+            }
+          }).catch(() => {}).finally(() => {
+            isOcrScanningRef.current = false;
+          });
+        }
+      }
+
       const timer = setTimeout(() => {
         setCountdown(countdown - 1);
       }, 1000);
@@ -296,51 +416,11 @@ export const TripleCameraView: React.FC<TripleCameraViewProps> = ({
       setCountdown(null);
       handleSimultaneousCapture();
     }
-  }, [countdown]);
-
-  // Background Auto-Scan Loop
-  useEffect(() => {
-    if (!isCamerasActive || !isAutoCapture || isProcessing || countdown !== null || cooldown > 0) {
-      return;
-    }
-
-    const interval = setInterval(async () => {
-      if (isDetectingRef.current || isProcessing || countdown !== null || cooldown > 0) return;
-
-      const plateB64 = captureFrameFromVideo(video1Ref.current, 0.85);
-      if (!plateB64) return;
-
-      isDetectingRef.current = true;
-      try {
-        const res = await axios.post<{
-          success: boolean;
-          plate_number?: string;
-          message?: string;
-        }>('/api/parking/ocr-plate', {
-          image_base64: plateB64
-        });
-
-        if (res.data.success && res.data.plate_number) {
-          const detected = res.data.plate_number;
-          onPlateChange(detected);
-          setAutoStatusMessage(`✓ Plat Terdeteksi: ${detected}! Mengambil foto...`);
-          playBeep(980, 0.18);
-          // Trigger countdown 3 seconds so user can prepare face in Cam 2
-          setCountdown(3);
-        }
-      } catch {
-        // Silent fail on periodic scan
-      } finally {
-        isDetectingRef.current = false;
-      }
-    }, 2200);
-
-    return () => clearInterval(interval);
-  }, [isCamerasActive, isAutoCapture, isProcessing, countdown, cooldown, plateNumber]);
+  }, [countdown, plateNumber]);
 
   return (
     <div className="space-y-3">
-      {/* Top Controller Bar: Gate Selector, Auto-Capture Toggle & Master Camera Switch */}
+      {/* Top Controller Bar: Gate Selector, Motion Sensor Toggle & Master Camera Switch */}
       <div className="bg-white border border-slate-200 rounded-lg p-3 shadow-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-3">
         {/* Gate Mode Selector */}
         <div className="flex items-center gap-2 w-full md:w-auto">
@@ -376,7 +456,7 @@ export const TripleCameraView: React.FC<TripleCameraViewProps> = ({
           </div>
         </div>
 
-        {/* Center: Auto-Capture Toggle Switch */}
+        {/* Center: Motion Sensor Trigger Mode Toggle */}
         <div className="flex items-center gap-2">
           <button
             onClick={() => {
@@ -388,11 +468,23 @@ export const TripleCameraView: React.FC<TripleCameraViewProps> = ({
                 ? 'bg-emerald-50 text-emerald-800 border-emerald-300 shadow-2xs'
                 : 'bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100'
             }`}
-            title="Aktifkan atau nonaktifkan pendeteksi kertas plat otomatis"
+            title="Aktifkan/nonaktifkan pemicu otomatis berbasis deteksi pergerakan"
           >
-            {isAutoCapture ? <Zap className="w-3.5 h-3.5 text-emerald-600 fill-emerald-500" /> : <ZapOff className="w-3.5 h-3.5" />}
-            <span>Auto-Capture: {isAutoCapture ? 'AKTIF (Sensor Otomatis)' : 'NONAKTIF (Manual Saja)'}</span>
+            {isAutoCapture ? (
+              <Zap className="w-3.5 h-3.5 text-emerald-600 fill-emerald-500" />
+            ) : (
+              <ZapOff className="w-3.5 h-3.5 text-slate-400" />
+            )}
+            <span>Sensor Gerakan (5s Timer): {isAutoCapture ? 'AKTIF' : 'MATI (Manual)'}</span>
           </button>
+
+          {/* Live Motion Energy Meter */}
+          {isCamerasActive && isAutoCapture && (
+            <div className="hidden sm:flex items-center gap-1 px-2 py-1 bg-slate-50 border border-slate-200 rounded text-[10px] font-mono text-slate-600" title="Tingkat pergerakan visual saat ini">
+              <Activity className={`w-3 h-3 ${motionLevel >= 12 ? 'text-emerald-600 animate-pulse' : 'text-slate-400'}`} />
+              <span>Gerak: {motionLevel}%</span>
+            </div>
+          )}
         </div>
 
         {/* Master Camera Activation Button & Hardware Count */}
@@ -429,18 +521,18 @@ export const TripleCameraView: React.FC<TripleCameraViewProps> = ({
         </div>
       )}
 
-      {/* Auto-Capture Status Banner */}
+      {/* Auto-Capture Status Banner with 5-Second Countdown */}
       {isCamerasActive && isAutoCapture && (
         <div className={`p-2.5 rounded-lg border text-xs flex items-center justify-between transition ${
           countdown !== null
-            ? 'bg-amber-500 text-slate-950 border-amber-600 font-bold animate-pulse'
+            ? 'bg-amber-500 text-slate-950 border-amber-600 font-bold shadow-sm'
             : cooldown > 0
             ? 'bg-blue-50 text-blue-800 border-blue-200'
             : 'bg-emerald-50 text-emerald-800 border-emerald-200'
         }`}>
           <div className="flex items-center gap-2">
             {countdown !== null ? (
-              <Timer className="w-4 h-4 animate-spin" />
+              <Timer className="w-4 h-4 animate-spin text-slate-950" />
             ) : cooldown > 0 ? (
               <CheckCircle2 className="w-4 h-4 text-blue-600" />
             ) : (
@@ -450,22 +542,25 @@ export const TripleCameraView: React.FC<TripleCameraViewProps> = ({
           </div>
 
           {countdown !== null && (
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-black tracking-widest bg-slate-950 text-amber-300 px-2.5 py-0.5 rounded">
-                JEPRET DALAM: {countdown}s
+            <div className="flex items-center gap-2.5">
+              <span className="text-sm font-black tracking-widest bg-slate-950 text-amber-300 px-3 py-0.5 rounded shadow-xs">
+                JEPRET DALAM: {countdown} DETIK
               </span>
               <button
-                onClick={() => setCountdown(null)}
-                className="px-2 py-0.5 rounded bg-slate-900 text-white text-[10px] font-medium hover:bg-slate-800"
+                onClick={() => {
+                  setCountdown(null);
+                  setAutoStatusMessage('Sensor Siaga: Menunggu pergerakan kendaraan / orang di depan kamera...');
+                }}
+                className="px-2.5 py-1 rounded bg-slate-900 text-white text-[11px] font-bold hover:bg-slate-800 transition"
               >
-                Batalkan
+                ✕ Batalkan
               </button>
             </div>
           )}
 
           {cooldown > 0 && (
             <span className="text-[11px] font-mono text-blue-700 font-bold">
-              Jeda Kendaraan: {cooldown}s
+              Cooldown: {cooldown}s
             </span>
           )}
         </div>
@@ -526,11 +621,11 @@ export const TripleCameraView: React.FC<TripleCameraViewProps> = ({
                 <span className="bg-amber-500/90 text-slate-950 font-bold text-[9px] px-2 py-0.5 rounded shadow-xs">
                   📄 TEMPATKAN KERTAS PLAT NOMOR DI SINI
                 </span>
-                {isAutoCapture && cooldown === 0 && (
-                  <div className="w-full h-0.5 bg-emerald-400 shadow-[0_0_8px_#34d399] animate-pulse" />
+                {countdown !== null && (
+                  <div className="w-full h-0.5 bg-amber-400 shadow-[0_0_8px_#f59e0b] animate-pulse" />
                 )}
                 <span className="text-[9px] text-amber-300 font-mono bg-black/60 px-1.5 py-0.5 rounded">
-                  ANPR OCR ACTIVE
+                  ANPR OCR CAMERA
                 </span>
               </div>
             )}
@@ -783,8 +878,8 @@ export const TripleCameraView: React.FC<TripleCameraViewProps> = ({
           </p>
           <p className="text-[11px] text-slate-500">
             {isGateIn
-              ? 'Tunjukkan kertas plat ke Kamera 1. Sistem otomatis membaca plat, lalu memotret Kamera 1 & 2 secara simultan.'
-              : 'Kamera 1 & 2 memverifikasi pengemudi. Jika wajah berbeda, Kamera 3 otomatis melakukan trigger!'}
+              ? 'Tunjukkan kertas plat ke Kamera 1 saat tiba. Sensor gerakan otomatis memicu hitung mundur 5 detik untuk jepret simultan.'
+              : 'Saat kendaraan keluar, sensor gerakan mendeteksi kehadiran & mencocokkan wajah. Jika berbeda, Kamera 3 otomatis trigger!'}
           </p>
         </div>
 
