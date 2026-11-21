@@ -104,3 +104,51 @@ flowchart TD
 2. **False Acceptance Rate (FAR):** Probabilitas pencuri salah lolos sebagai pemilik sah (target: $0.0\%$).
 3. **False Rejection Rate (FRR):** Probabilitas pemilik sah salah ditahan (target: $0.0\%$).
 4. **Akurasi Trigger Kamera 3:** Tingkat keberhasilan pemicuan Kamera 3 pada kondisi anomali ($100\%$).
+
+---
+
+### 3.5 Perancangan Basis Data (Entity Relationship Diagram / ERD)
+Struktur basis data dirancang untuk mendukung pencatatan status sesi verifikasi masuk (*Gate-In*) dan keluar (*Gate-Out*) serta pencatatan audit log transaksi secara terpisah.
+
+```mermaid
+erDiagram
+    PARKING_SESSIONS ||--o{ PARKING_LOGS : "mencatat_riwayat (1:N)"
+    VEHICLES ||--o{ DRIVER_PROFILES : "memiliki_profil (1:N)"
+
+    PARKING_SESSIONS {
+        int id PK
+        string plate_number
+        string status
+        timestamp entry_time
+        string entry_face_embedding
+        string entry_face_photo
+        string entry_plate_photo
+        timestamp exit_time
+        string exit_face_photo
+        float exit_similarity
+        string exit_status
+        string anomaly_evidence_path
+        string driver_persona
+        string notes
+    }
+
+    PARKING_LOGS {
+        int id PK
+        int session_id FK
+        string plate_number
+        string gate_mode
+        string event_type
+        timestamp timestamp
+        string status
+        float similarity_score
+        string decision_notes
+        string plate_photo_path
+        string face_photo_path
+        string entry_photo_path
+        string anomaly_evidence_path
+        boolean high_res_triggered
+        string driver_persona
+    }
+```
+
+*Dokumentasi spesifikasi lengkap kamus data dan struktur tabel dapat dilihat pada berkas [docs/ERD_DATABASE.md](ERD_DATABASE.md).*
