@@ -25,7 +25,7 @@ app.add_middleware(
 )
 
 # Resilient storage file server with cross-subfolder auto-recovery
-@app.get("/storage/{folder}/{filename}")
+@app.api_route("/storage/{folder}/{filename}", methods=["GET", "HEAD"])
 async def serve_storage_file(folder: str, filename: str):
     """
     Serves images from storage with automatic cross-directory recovery.
