@@ -147,6 +147,12 @@ export const VerificationPanel: React.FC<VerificationPanelProps> = ({ result, on
                   <img
                     src={result.entry_photo_url}
                     alt="Foto Masuk"
+                    onError={(e) => {
+                      const target = e.currentTarget;
+                      if (target.src.includes('/storage/faces/')) {
+                        target.src = target.src.replace('/storage/faces/', '/storage/anomalies/');
+                      }
+                    }}
                     onClick={() => onOpenEvidence(result.entry_photo_url!)}
                     className="w-full h-44 object-contain rounded border border-slate-200 bg-slate-900/5 cursor-pointer hover:opacity-90"
                     title="Klik untuk memperbesar foto saat masuk"
@@ -174,6 +180,14 @@ export const VerificationPanel: React.FC<VerificationPanelProps> = ({ result, on
                   <img
                     src={(result.exit_photo_url || result.face_photo_url)!}
                     alt="Foto Keluar"
+                    onError={(e) => {
+                      const target = e.currentTarget;
+                      if (target.src.includes('/storage/faces/')) {
+                        target.src = target.src.replace('/storage/faces/', '/storage/anomalies/');
+                      } else if (target.src.includes('/storage/anomalies/')) {
+                        target.src = target.src.replace('/storage/anomalies/', '/storage/faces/');
+                      }
+                    }}
                     onClick={() => onOpenEvidence((result.exit_photo_url || result.face_photo_url)!)}
                     className="w-full h-44 object-contain rounded border border-slate-200 bg-slate-900/5 cursor-pointer hover:opacity-90"
                     title="Klik untuk memperbesar foto saat keluar"

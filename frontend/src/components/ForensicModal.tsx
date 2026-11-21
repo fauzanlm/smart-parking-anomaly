@@ -31,6 +31,14 @@ export const ForensicModal: React.FC<ForensicModalProps> = ({ imageUrl, onClose 
           <img
             src={imageUrl}
             alt="Forensic Evidence"
+            onError={(e) => {
+              const target = e.currentTarget;
+              if (target.src.includes('/storage/faces/')) {
+                target.src = target.src.replace('/storage/faces/', '/storage/anomalies/');
+              } else if (target.src.includes('/storage/anomalies/')) {
+                target.src = target.src.replace('/storage/anomalies/', '/storage/faces/');
+              }
+            }}
             className="max-h-[420px] w-auto rounded border border-slate-300 object-contain shadow-xs"
           />
         </div>
