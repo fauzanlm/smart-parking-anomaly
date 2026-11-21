@@ -79,6 +79,17 @@ def test_gate_out_anomaly_intruder():
     assert data_thief["camera_3_triggered"] is True
     assert data_thief["similarity_percentage"] < 65.0
 
+    # Verifikasi bahwa foto anomali dan bukti kamera 3 dapat diakses (tidak 404 / corrupt)
+    if data_thief.get("exit_photo_url"):
+        resp_img = client.get(data_thief["exit_photo_url"])
+        assert resp_img.status_code == 200
+        assert len(resp_img.content) > 100
+
+    if data_thief.get("anomaly_evidence_url"):
+        resp_ev = client.get(data_thief["anomaly_evidence_url"])
+        assert resp_ev.status_code == 200
+        assert len(resp_ev.content) > 100
+
 def test_gate_out_without_entry():
     resp = client.post("/api/parking/process", json={
         "plate_number": "B 9999 GHO",

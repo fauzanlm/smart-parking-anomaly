@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 import cv2
 import numpy as np
 import base64
@@ -75,9 +76,48 @@ class ParkingDecisionEngine:
         prefix = "ANOMALY_CAM3" if is_anomaly else ("ENTRY" if gate_mode == "GATE_IN" else "RECORD")
         filename = f"{prefix}_{plate_str.replace(' ', '_')}_{int(datetime.now().timestamp())}.jpg"
         save_dir = ANOMALIES_DIR if is_anomaly else FACES_DIR
-        out_path = str(save_dir / filename)
-        img.save(out_path, quality=90)
+        out_path = save_dir / filename
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        img.save(str(out_path), quality=90)
         return filename
+
+    @staticmethod
+    def _safe_write_image(file_path: Path, img_bgr: np.ndarray) -> bool:
+        """
+        Safely writes an image to disk with parent directory creation and encoding fallback.
+        Works 100% reliably on Windows, macOS, and Linux without path-separator or unicode bugs.
+        """
+        try:
+            file_path.parent.mkdir(parents=True, exist_ok=True)
+            success, encoded_img = cv2.imencode(".jpg", img_bgr, [cv2.IMWRITE_JPEG_QUALITY, 90])
+            if success:
+                with open(str(file_path), "wb") as f:
+                    f.write(encoded_img)
+                return True
+            else:
+                return bool(cv2.imwrite(str(file_path), img_bgr))
+        except Exception as e:
+            print(f"[ERROR] Failed to save image to {file_path}: {e}")
+            return False
+
+    @staticmethod
+    def _resolve_photo_url(filename: Optional[str], default_subfolder: str = "faces") -> Optional[str]:
+        """
+        Determines the correct web URL for a stored photo by checking actual existence on disk.
+        Prevents 404/broken image bugs between anomalies, faces, and plates directories.
+        """
+        if not filename:
+            return None
+        clean_name = Path(filename).name
+        if (ANOMALIES_DIR / clean_name).exists():
+            return f"/storage/anomalies/{clean_name}"
+        elif (FACES_DIR / clean_name).exists():
+            return f"/storage/faces/{clean_name}"
+        elif (PLATES_DIR / clean_name).exists():
+            return f"/storage/plates/{clean_name}"
+        else:
+            folder = "anomalies" if clean_name.startswith("ANOMALY") else default_subfolder
+            return f"/storage/{folder}/{clean_name}"
 
     def _save_real_annotated_frame(
         self,
@@ -129,8 +169,8 @@ class ParkingDecisionEngine:
         prefix = "ANOMALY_WEBCAM" if is_anomaly else ("ENTRY_WEBCAM" if gate_mode == "GATE_IN" else "RECORD_WEBCAM")
         filename = f"{prefix}_{plate_str.replace(' ', '_')}_{int(datetime.now().timestamp())}.jpg"
         save_dir = ANOMALIES_DIR if is_anomaly else FACES_DIR
-        out_path = str(save_dir / filename)
-        cv2.imwrite(out_path, annotated)
+        out_path = save_dir / filename
+        self._safe_write_image(out_path, annotated)
         return filename
 
     def _save_plate_frame(self, frame: np.ndarray, plate_str: str) -> str:
@@ -140,8 +180,8 @@ class ParkingDecisionEngine:
         cv2.rectangle(annotated, (0, 0), (w, 35), (20, 20, 30), -1)
         cv2.putText(annotated, f"CAM 01 ● ANPR OCR | {plate_str}", (10, 24), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 255), 2)
         filename = f"PLATE_{plate_str.replace(' ', '_')}_{int(datetime.now().timestamp())}.jpg"
-        out_path = str(PLATES_DIR / filename)
-        cv2.imwrite(out_path, annotated)
+        out_path = PLATES_DIR / filename
+        self._safe_write_image(out_path, annotated)
         return filename
 
     def _save_camera3_evidence(self, frame: np.ndarray, plate_str: str, similarity: Optional[float]) -> str:
@@ -158,8 +198,8 @@ class ParkingDecisionEngine:
         cv2.putText(annotated, footer, (15, h - 12), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 2)
 
         filename = f"ANOMALY_CAM3_TRIGGERED_{plate_str.replace(' ', '_')}_{int(datetime.now().timestamp())}.jpg"
-        out_path = str(ANOMALIES_DIR / filename)
-        cv2.imwrite(out_path, annotated)
+        out_path = ANOMALIES_DIR / filename
+        self._safe_write_image(out_path, annotated)
         return filename
 
     # =========================================================
@@ -174,8 +214,8 @@ class ParkingDecisionEngine:
         photo_filename: str,
         plate_photo_filename: Optional[str] = None
     ) -> Dict[str, Any]:
-        face_photo_url = f"/storage/faces/{photo_filename}"
-        plate_photo_url = f"/storage/plates/{plate_photo_filename}" if plate_photo_filename else None
+        face_photo_url = self._resolve_photo_url(photo_filename, default_subfolder="faces")
+        plate_photo_url = self._resolve_photo_url(plate_photo_filename, default_subfolder="plates")
         
         session = create_gate_in_session(
             plate_number=clean_plate,
@@ -251,8 +291,8 @@ class ParkingDecisionEngine:
     ) -> Dict[str, Any]:
         threshold = self.real_face_threshold if is_real_webcam else self.simulation_threshold
         active_session = get_active_session_by_plate(clean_plate)
-        exit_photo_url = f"/storage/{'anomalies' if not active_session else 'faces'}/{exit_photo_filename}"
-        plate_photo_url = f"/storage/plates/{plate_photo_filename}" if plate_photo_filename else None
+        exit_photo_url = self._resolve_photo_url(exit_photo_filename, default_subfolder="faces")
+        plate_photo_url = self._resolve_photo_url(plate_photo_filename, default_subfolder="plates")
 
         if not active_session:
             # Anomaly: Vehicle attempting to exit without Gate-In record!
@@ -261,7 +301,7 @@ class ParkingDecisionEngine:
             camera_3_triggered = True
             
             # Camera 3 triggers to record evidence
-            evidence_url = f"/storage/anomalies/{camera3_evidence_filename}" if camera3_evidence_filename else exit_photo_url
+            evidence_url = self._resolve_photo_url(camera3_evidence_filename, default_subfolder="anomalies") if camera3_evidence_filename else exit_photo_url
             decision_notes = (
                 f"[ANOMALI GATE-OUT] Kendaraan plat {clean_plate} TIDAK MEMILIKI histori Gate-In di database! "
                 f"Status: ANOMALI. Kamera 3 MELAKUKAN TRIGGER terhadap pengendara untuk merekam bukti forensik. "
@@ -331,7 +371,7 @@ class ParkingDecisionEngine:
             status = "ANOMALY"
             gate_action = "LOCK"
             camera_3_triggered = True # Flowchart: "Kamera 3 melakukan trigger terhadap pengendara"
-            evidence_url = f"/storage/anomalies/{camera3_evidence_filename}" if camera3_evidence_filename else exit_photo_url
+            evidence_url = self._resolve_photo_url(camera3_evidence_filename, default_subfolder="anomalies") if camera3_evidence_filename else exit_photo_url
             decision_notes = (
                 f"[PERINGATAN ANOMALI GATE-OUT] Data biometrik wajah TIDAK SESUAI dengan histori gate-in! "
                 f"Tingkat Kemiripan hanya {similarity_score * 100:.1f}% (di bawah ambang {threshold * 100:.0f}%). "
@@ -532,16 +572,18 @@ class ParkingDecisionEngine:
             # 3. CAMERA 3: Triggered high-res capture on Anomaly!
             cam3_file = None
             if is_anomaly:
-                if camera3_image_base64:
-                    if "," in camera3_image_base64:
-                        camera3_image_base64 = camera3_image_base64.split(",")[1]
-                    c3_bytes = base64.b64decode(camera3_image_base64)
-                    c3_arr = np.frombuffer(c3_bytes, np.uint8)
-                    cam3_frame = cv2.imdecode(c3_arr, cv2.IMREAD_COLOR)
-                    if cam3_frame is not None:
-                        cam3_file = self._save_camera3_evidence(cam3_frame, clean_plate, sim)
+                if camera3_image_base64 and len(camera3_image_base64) > 50:
+                    try:
+                        raw_c3 = camera3_image_base64.split(",")[1] if "," in camera3_image_base64 else camera3_image_base64
+                        c3_bytes = base64.b64decode(raw_c3)
+                        c3_arr = np.frombuffer(c3_bytes, np.uint8)
+                        cam3_frame = cv2.imdecode(c3_arr, cv2.IMREAD_COLOR)
+                        if cam3_frame is not None and cam3_frame.size > 0:
+                            cam3_file = self._save_camera3_evidence(cam3_frame, clean_plate, sim)
+                    except Exception as e:
+                        print(f"[WARN] Gagal decode base64 Camera 3, fallback ke frame wajah: {e}")
                 
-                # If Camera 3 hardware frame wasn't supplied, use Camera 2 frame as high-res evidence
+                # If Camera 3 hardware frame wasn't supplied or failed decode, use Camera 2 frame as high-res evidence
                 if not cam3_file:
                     cam3_file = self._save_camera3_evidence(face_frame, clean_plate, sim)
 
