@@ -55,6 +55,9 @@ smart-parking-anomaly/
 ├── frontend/                       # Dashboard Real-Time (React 18 + Vite + Tailwind)
 ├── docs/
 │   ├── BAB_3_METODOLOGI_PENELITIAN.md
-│   └── PANDUAN_SIDANG_DAN_DEMO.md
+│   ├── BAB_4_HASIL_DAN_PEMBAHASAN.md
+│   ├── ERD_DATABASE.md                 # Entity Relationship Diagram & Kamus Data
+│   ├── PANDUAN_SIDANG_DAN_DEMO.md
+│   └── PANDUAN_SETUP_WINDOWS.md
 └── start.sh                        # One-click launcher
 ```
